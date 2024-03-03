@@ -28,11 +28,7 @@ export type IteratorPluginNode = ChartNode<
 
 // This defines the data that your new node will store.
 export type IteratorPluginNodeData = {
-  someData: string;
-
-  // It is a good idea to include useXInput fields for any inputs you have, so that
-  // the user can toggle whether or not to use an import port for them.
-  useSomeDataInput?: boolean;
+  inputArray: any[];
 };
 
 // Make sure you export functions that take in the Rivet library, so that you do not
@@ -48,7 +44,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 
         // This is the default data that your node will store
         data: {
-          someData: "Hello World",
+          inputArray: [],
         },
 
         // This is the default title of your node.
@@ -77,11 +73,11 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     ): NodeInputDefinition[] {
       const inputs: NodeInputDefinition[] = [];
 
-      if (data.useSomeDataInput) {
+      if (data.inputArray.length > 0) {
         inputs.push({
-          id: "someData" as PortId,
-          dataType: "string",
-          title: "Some Data",
+          id: "input array" as PortId,
+          dataType: "any[]",
+          title: "Input array",
         });
       }
 
@@ -98,10 +94,20 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     ): NodeOutputDefinition[] {
       return [
         {
-          id: "someData" as PortId,
-          dataType: "string",
-          title: "Some Data",
+          id: "item" as PortId,
+          dataType: "any",
+          title: "Item from input array",
         },
+        {
+          id: "itemIndex" as PortId,
+          dataType: "number",
+          title: "Index of item",
+        },
+        {
+          id: "arrayLength" as PortId,
+          dataType: "number",
+          title: "Length of array",
+        }
       ];
     },
 
@@ -120,12 +126,6 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       _data: IteratorPluginNodeData
     ): EditorDefinition<IteratorPluginNode>[] {
       return [
-        {
-          type: "string",
-          dataKey: "someData",
-          useInputToggleDataKey: "useSomeDataInput",
-          label: "Some Data",
-        },
       ];
     },
 
@@ -136,7 +136,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     ): string | NodeBodySpec | NodeBodySpec[] | undefined {
       return rivet.dedent`
         Iterator Plugin Node
-        Data: ${data.useSomeDataInput ? "(Using Input)" : data.someData}
+        Data: ${data.inputArray ? "(Using Input)" : data.inputArray}
       `;
     },
 
@@ -148,18 +148,26 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       inputData: Inputs,
       _context: InternalProcessContext
     ): Promise<Outputs> {
-      const someData = rivet.getInputOrData(
+      const inputArray = rivet.getInputOrData(
         data,
         inputData,
-        "someData",
-        "string"
+        "inputArray",
+        "any[]"
       );
 
       return {
-        ["someData" as PortId]: {
-          type: "string",
-          value: someData,
+        ["item" as PortId]: {
+          type: "any",
+          value: inputArray,
         },
+        ["itemIndex" as PortId]: {
+          type: "number",
+          value: 0,
+        },
+        ["arrayLength" as PortId]: {
+          type: "number",
+          value: inputArray.length,
+        }
       };
     },
   };
