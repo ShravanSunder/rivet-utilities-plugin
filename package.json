@@ -16,7 +16,8 @@
     "publish": "yarn npm publish --access public"
   },
   "dependencies": {
-    "@ironclad/rivet-core": "^1.4.0"
+    "@ironclad/rivet-core": "^1.4.0",
+    "ts-pattern": "^5.0.8"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.5.3",
