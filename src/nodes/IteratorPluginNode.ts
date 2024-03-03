@@ -193,24 +193,39 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 
       if (resultArrayDataValue.type === 'control-flow-excluded' || resultArrayDataValue.type === 'control-flow-excluded[]') {
         return {
-          [`itemChunk` as PortId]: { type: 'control-flow-excluded', value:undefined },
+          [`itemChunk` as PortId]: { type: 'control-flow-excluded[]', value:[] },
           [`itemIndex` as PortId]: { type: 'control-flow-excluded', value: undefined },
           [`chunkSize` as PortId]: { type: 'control-flow-excluded', value: undefined },
           [`arrayLength` as PortId]: { type: 'control-flow-excluded', value: undefined },
-          [`doneArray` as PortId]: { type: 'control-flow-excluded', value: undefined }
+          [`resultArray` as PortId]: { type: 'control-flow-excluded[]', value: [] },
+          [`doneArray` as PortId]: { type: 'control-flow-excluded', value: 'loop-not-broken' }
         }
       }
 
 
       const inputArray = rivet.getInputOrData(data, inputData, "inputArray", "any[]");
       const chunkSize = rivet.getInputOrData(data, inputData, "chunkSize", 'number');
+      const resultArray = rivet.getInputOrData(data, inputData, "resultArray", "any[]");
 
       const totalChunks = Math.ceil(inputArray.length / chunkSize);
+
+      const id = '0';  // TODO: need to get NodeId = data.id;
+      const startingChunk = progressMap.get(id) ?? 0;
+
+      if (startingChunk >= totalChunks) {
+        return {
+          [`doneArray` as PortId]: { type: 'any[]', value:  resultArray},
+          [`itemChunk` as PortId]: { type: 'control-flow-excluded[]', value:[] },
+          [`itemIndex` as PortId]: { type: 'control-flow-excluded', value: undefined },
+          [`chunkSize` as PortId]: { type: 'control-flow-excluded', value: undefined },
+          [`arrayLength` as PortId]: { type: 'control-flow-excluded', value: undefined },
+          [`resultArray` as PortId]: { type: 'control-flow-excluded', value: undefined },
+        }
+      }
+
       let outputs: Outputs = {};
 
-      ///const startingChunk = progressMap.get();
-
-      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      for (let chunkIndex = startingChunk; chunkIndex < totalChunks; chunkIndex++) {
         const start = chunkIndex * chunkSize;
         const end = start + chunkSize;
         const chunk = inputArray.slice(start, end);
@@ -221,8 +236,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 
       outputs[`chunkSize` as PortId] = { type: "number", value: chunkSize };
       outputs[`arrayLength` as PortId] = { type: "number", value: inputArray.length };
-
-      outputs[`resultArray` as PortId] = { value: [], type: 'control-flow-excluded[]' };
+      outputs[`resultArray` as PortId] = { value: ['loop-not-broken'], type: 'control-flow-excluded[]' };
 
       return outputs;
     },
