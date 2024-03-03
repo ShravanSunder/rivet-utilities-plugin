@@ -29,11 +29,17 @@ export type IteratorPluginNode = ChartNode<
 // This defines the data that your new node will store.
 export type IteratorPluginNodeData = {
   inputArray: any[];
+  chunkSize: number;
+  resultArray: any[];
 };
 
 // Make sure you export functions that take in the Rivet library, so that you do not
 // import the entire Rivet core library in your plugin.
 export function iteratorPluginNode(rivet: typeof Rivet) {
+  /**
+   * key is node id.  value is the index of the chunk[0] that the node is currently processing
+   */
+  const progressMap = new Map<string, number>();
   // This is your main node implementation. It is an object that implements the PluginNodeImpl interface.
   const IteratorPluginNodeImpl: PluginNodeImpl<IteratorPluginNode> = {
     // This should create a new instance of your node type from scratch.
@@ -45,6 +51,8 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         // This is the default data that your node will store
         data: {
           inputArray: [],
+          chunkSize: 1,
+          resultArray: [],
         },
 
         // This is the default title of your node.
@@ -60,6 +68,8 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
           width: 200,
         },
       };
+
+      progressMap.set(node.id, 0)
       return node;
     },
 
@@ -81,6 +91,21 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         });
       }
 
+      if (data.chunkSize > 0) {
+        inputs.push({
+          id: "chunkSize" as PortId,
+          dataType: "number",
+          title: "Chunk Size",
+        });
+      }
+
+      inputs.push({
+        id: "resultArray" as PortId,
+        dataType: "any[]",
+        title: "Result Array",
+      });
+      
+
       return inputs;
     },
 
@@ -94,20 +119,30 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     ): NodeOutputDefinition[] {
       return [
         {
-          id: "item" as PortId,
-          dataType: "any",
-          title: "Item from input array",
+          id: "itemChunk" as PortId,
+          dataType: "any[]",
+          title: "Item Chunk from input array",
         },
         {
           id: "itemIndex" as PortId,
           dataType: "number",
-          title: "Index of item",
+          title: "Index of itemChunk[0]",
+        },
+        {
+          id: "chunkSize" as PortId,
+          dataType: "number",
+          title: "Chunk Size",
         },
         {
           id: "arrayLength" as PortId,
           dataType: "number",
           title: "Length of array",
-        }
+        },
+        {
+          id: "doneArray" as PortId,
+          dataType: "any[]",
+          title: "Iterator Done Result Array",
+        },
       ];
     },
 
@@ -126,6 +161,12 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       _data: IteratorPluginNodeData
     ): EditorDefinition<IteratorPluginNode>[] {
       return [
+        {
+          type: "number",
+          dataKey: "chunkSize",
+          label: "Chunk Size",
+          defaultValue: 1,
+        }
       ];
     },
 
@@ -148,27 +189,42 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       inputData: Inputs,
       _context: InternalProcessContext
     ): Promise<Outputs> {
-      const inputArray = rivet.getInputOrData(
-        data,
-        inputData,
-        "inputArray",
-        "any[]"
-      );
+      const resultArrayDataValue = inputData['continue' as PortId]!;
 
-      return {
-        ["item" as PortId]: {
-          type: "any",
-          value: inputArray,
-        },
-        ["itemIndex" as PortId]: {
-          type: "number",
-          value: 0,
-        },
-        ["arrayLength" as PortId]: {
-          type: "number",
-          value: inputArray.length,
+      if (resultArrayDataValue.type === 'control-flow-excluded' || resultArrayDataValue.type === 'control-flow-excluded[]') {
+        return {
+          [`itemChunk` as PortId]: { type: 'control-flow-excluded', value:undefined },
+          [`itemIndex` as PortId]: { type: 'control-flow-excluded', value: undefined },
+          [`chunkSize` as PortId]: { type: 'control-flow-excluded', value: undefined },
+          [`arrayLength` as PortId]: { type: 'control-flow-excluded', value: undefined },
+          [`doneArray` as PortId]: { type: 'control-flow-excluded', value: undefined }
         }
-      };
+      }
+
+
+      const inputArray = rivet.getInputOrData(data, inputData, "inputArray", "any[]");
+      const chunkSize = rivet.getInputOrData(data, inputData, "chunkSize", 'number');
+
+      const totalChunks = Math.ceil(inputArray.length / chunkSize);
+      let outputs: Outputs = {};
+
+      ///const startingChunk = progressMap.get();
+
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * chunkSize;
+        const end = start + chunkSize;
+        const chunk = inputArray.slice(start, end);
+
+        outputs[`itemChunk` as PortId] = { type: "any[]", value: chunk };
+        outputs[`itemIndex` as PortId] = { type: "number", value: start };
+      }
+
+      outputs[`chunkSize` as PortId] = { type: "number", value: chunkSize };
+      outputs[`arrayLength` as PortId] = { type: "number", value: inputArray.length };
+
+      outputs[`resultArray` as PortId] = { value: [], type: 'control-flow-excluded[]' };
+
+      return outputs;
     },
   };
 
