@@ -722,7 +722,6 @@ function iteratorPluginNode(rivet) {
         // This is the default data that your node will store
         data: {
           results: [],
-          errors: [],
           chunkSize: 1,
           useChunkSizeToggle: false
         },
@@ -773,7 +772,7 @@ function iteratorPluginNode(rivet) {
       return [
         {
           id: "outputData",
-          dataType: "any[]",
+          dataType: "object[]",
           title: "Output Data"
         }
       ];
@@ -805,8 +804,7 @@ function iteratorPluginNode(rivet) {
     getBody(data) {
       return rivet.dedent`
         Iterator Plugin Node
-        Data: ${data.results}
-				Errors: ${data.errors}
+        Results: ${data.results}
       `;
     },
     // This is the main processing function for your node. It can do whatever you like, but it must return
@@ -815,10 +813,7 @@ function iteratorPluginNode(rivet) {
     async process(data, inputData, context) {
       const outputs = {};
       const graph = rivet.coerceType(inputData["graph"], "graph-reference");
-      const inputArray = rivet.coerceType(
-        inputData["inputArray"],
-        "any[]"
-      );
+      const inputArray = rivet.coerceType(inputData["inputArray"], "any[]");
       let chunkSize = rivet.coerceTypeOptional(inputData["chunkSize"], "number") ?? data.chunkSize;
       chunkSize = chunkSize > 0 ? chunkSize : 1;
       const invalidGraphInputs = inputArray.some((f) => typeof f != "object");
@@ -865,16 +860,13 @@ function iteratorPluginNode(rivet) {
       const results = await Promise.all(addToQueue);
       await queue.onIdle();
       outputs["results"] = {
-        type: "any[]",
+        type: "object[]",
         value: results
       };
       return outputs;
     }
   };
-  const iteratorPluginNode2 = rivet.pluginNodeDefinition(
-    IteratorPluginNodeImpl,
-    "Iterator Plugin Node"
-  );
+  const iteratorPluginNode2 = rivet.pluginNodeDefinition(IteratorPluginNodeImpl, "Iterator Plugin Node");
   return iteratorPluginNode2;
 }
 

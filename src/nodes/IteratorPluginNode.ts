@@ -28,7 +28,6 @@ export type IteratorPluginNode = ChartNode<'iteratorPlugin', IteratorPluginNodeD
 // This defines the data that your new node will store.
 export type IteratorPluginNodeData = {
 	results: any[];
-	errors: any[];
 	chunkSize: number;
 	useChunkSizeToggle: boolean;
 };
@@ -52,7 +51,6 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 				// This is the default data that your node will store
 				data: {
 					results: [],
-					errors: [],
 					chunkSize: 1,
 					useChunkSizeToggle: false,
 				},
@@ -122,7 +120,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 			return [
 				{
 					id: 'outputData' as PortId,
-					dataType: 'any[]',
+					dataType: 'object[]',
 					title: 'Output Data',
 				},
 			];
@@ -158,8 +156,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 		getBody(data: IteratorPluginNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
 			return rivet.dedent`
         Iterator Plugin Node
-        Data: ${data.results}
-				Errors: ${data.errors}
+        Results: ${data.results}
       `;
 		},
 
@@ -169,11 +166,13 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 		async process(data: IteratorPluginNodeData, inputData: Inputs, context: InternalProcessContext): Promise<Outputs> {
 			const outputs: Outputs = {};
 
+			// get the inputs
 			const graph = rivet.coerceType(inputData['graph' as PortId], 'graph-reference');
 			const inputArray = rivet.coerceType(inputData['inputArray' as PortId], 'any[]');
 			let chunkSize = rivet.coerceTypeOptional(inputData['chunkSize' as PortId], 'number') ?? data.chunkSize;
 			chunkSize = chunkSize > 0 ? chunkSize : 1;
 
+			// validate input array
 			const invalidGraphInputs = inputArray.some((f) => typeof f != 'object');
 			if (invalidGraphInputs) {
 				outputs['results' as PortId] = {
@@ -188,14 +187,17 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 				return outputs;
 			}
 
+			// create a queue to process the array
 			const queue = new PQueue({ concurrency: chunkSize });
 			const addToQueue = inputArray.map((item: any, index) => {
 				return queue.add<Outputs>(async (): Promise<Outputs> => {
 					let itemOutput: Outputs = {};
 					try {
+						// create a call graph node
 						const node = rivet.callGraphNode.impl.create();
 						const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
 
+						// set the inputs
 						const itemDatavalue: ObjectDataValue = {
 							type: 'object',
 							value: item,
@@ -204,6 +206,8 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 							['graph' as PortId]: inputData['graph' as PortId],
 							['inputs' as PortId]: itemDatavalue,
 						};
+
+						// process the graph
 						itemOutput = await impl.process(iteratorInputData, context);
 					} catch (err) {
 						itemOutput['outputs' as PortId] = {
@@ -222,11 +226,13 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 				}) as Promise<Outputs>;
 			});
 
+			// wait for queue to finish
 			const results = await Promise.all(addToQueue);
 			await queue.onIdle();
 
+			// process results
 			outputs['results' as PortId] = {
-				type: 'any[]',
+				type: 'object[]',
 				value: results,
 			};
 			return outputs;
