@@ -721,11 +721,10 @@ function iteratorPluginNode(rivet) {
         id,
         // This is the default data that your node will store
         data: {
-          chunkSize: 1,
           results: [],
-          inputArray: [],
           errors: [],
-          graph: void 0
+          chunkSize: 1,
+          useChunkSizeToggle: false
         },
         // This is the default title of your node.
         title: "Iterator Plugin Node",
@@ -758,11 +757,12 @@ function iteratorPluginNode(rivet) {
         description: "The array to iterate over.",
         required: true
       });
-      if (data.chunkSize > 0) {
+      if (data.useChunkSizeToggle) {
         inputs.push({
           id: "chunkSize",
           dataType: "number",
-          title: "Chunk Size"
+          title: "Chunk Size",
+          data: data.chunkSize
         });
       }
       return inputs;
@@ -793,8 +793,9 @@ function iteratorPluginNode(rivet) {
         {
           type: "number",
           dataKey: "chunkSize",
-          label: "Chunk Size",
-          defaultValue: 1
+          label: "Chunk size",
+          defaultValue: 1,
+          useInputToggleDataKey: "useChunkSizeToggle"
         }
       ];
     },
@@ -811,38 +812,42 @@ function iteratorPluginNode(rivet) {
     // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
     // must also correspond to the output definitions you defined in the getOutputDefinitions function.
     async process(data, inputData, context) {
-      console.log("iterator ----", "started", "---------------");
       const outputs = {};
-      const inputArray = rivet.getInputOrData(
-        data,
-        inputData,
-        "inputArray",
+      const graph = rivet.coerceType(inputData["graph"], "graph-reference");
+      const inputArray = rivet.coerceType(
+        inputData["inputArray"],
         "any[]"
       );
-      let chunkSize = rivet.getInputOrData(
-        data,
-        inputData,
-        "chunkSize",
-        "number"
-      );
-      const graphName = rivet.getInputOrData(data, inputData, "graph", "string");
+      let chunkSize = rivet.coerceTypeOptional(inputData["chunkSize"], "number") ?? data.chunkSize;
       chunkSize = chunkSize > 0 ? chunkSize : 1;
+      const invalidGraphInputs = inputArray.some((f) => typeof f != "object");
+      if (invalidGraphInputs) {
+        outputs["results"] = {
+          type: "control-flow-excluded",
+          value: void 0
+        };
+        outputs["error"] = {
+          type: "string",
+          value: "Input array must be an array of objects.  A graph needs an object with keys that match the graph's input ports"
+        };
+        return outputs;
+      }
       const queue = new PQueue({ concurrency: chunkSize });
-      console.log("iterator -------", "start queue");
-      console.log("iterator ------", data, { inputArray, chunkSize });
       const addToQueue = inputArray.map((item, index) => {
-        console.log("iterator------", "item", item, index, context);
         return queue.add(async () => {
           let itemOutput = {};
           try {
             const node = rivet.callGraphNode.impl.create();
             const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
-            const graphInput = {
-              graph: graphName,
-              inputs: item
+            const itemDatavalue = {
+              type: "object",
+              value: item
             };
-            itemOutput = await impl.process(graphInput, context);
-            console.log("iterator------", "itemOutput", itemOutput, impl, node);
+            const iteratorInputData = {
+              ["graph"]: inputData["graph"],
+              ["inputs"]: itemDatavalue
+            };
+            itemOutput = await impl.process(iteratorInputData, context);
           } catch (err) {
             itemOutput["outputs"] = {
               type: "control-flow-excluded",
@@ -850,16 +855,14 @@ function iteratorPluginNode(rivet) {
             };
             itemOutput["error"] = {
               type: "string",
-              value: `ItemIndex: ${index}; ` + rivet.getError(err).message
+              value: `There is an error running the graph ${graph.graphName}.  ItemIndex: ${index}.  Inputs: ${item}  ${rivet.getError(err).message}`
             };
-            console.log("iterator", err);
           }
           return itemOutput;
         });
       });
-      await queue.onIdle();
       const results = await Promise.all(addToQueue);
-      console.log("iterator -------", results, "await queue");
+      await queue.onIdle();
       outputs["results"] = {
         type: "any[]",
         value: results
