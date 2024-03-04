@@ -77,6 +77,8 @@ const options = {
   outfile: "dist/bundle.js",
   format: "esm",
   logLevel: "info",
+  minify: false,
+  sourcemap: true,
   plugins: [] as esbuild.Plugin[],
 } satisfies esbuild.BuildOptions;
 

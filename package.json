@@ -1,7 +1,7 @@
 {
-  "name": "rivet-plugin-example",
+  "name": "rivet-utilities-plugin",
   "packageManager": "yarn@3.5.0",
-  "version": "0.0.3",
+  "version": "0.0.2",
   "type": "module",
   "main": "dist/bundle.js",
   "files": [
@@ -16,9 +16,12 @@
     "publish": "yarn npm publish --access public"
   },
   "dependencies": {
-    "@ironclad/rivet-core": "^1.4.0"
+    "@ironclad/rivet-core": "^1.15.0",
+    "p-queue": "^8.0.1",
+    "ts-pattern": "^5.0.8"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.5.3",
     "esbuild": "^0.19.2",
     "npm-run-all": "^4.1.5",
     "recursive-copy": "^2.0.14",
