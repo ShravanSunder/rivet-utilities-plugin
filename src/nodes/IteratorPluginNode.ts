@@ -110,14 +110,6 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         });
       }
 
-			inputs.push({
-				id: "failFast" as PortId,
-				dataType: "boolean",
-				title: "Fail Fast",
-				defaultValue: true,
-				description: "If true, the node will fail as soon as any of the iterations fail."
-			});
-
       return inputs;
     },
 
@@ -182,6 +174,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       inputData: Inputs,
       context: InternalProcessContext
     ): Promise<Outputs> {
+      console.log ('iterator ----', 'started', '---------------')
       const outputs: Outputs = {};
       const inputArray = rivet.getInputOrData(
         data,
@@ -199,13 +192,18 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       chunkSize = chunkSize > 0 ? chunkSize : 1;
       const queue = new PQueue({ concurrency: chunkSize });
 
+      console.log('iterator -------', 'start queue');
+      console.log('iterator ------', data, {inputArray, chunkSize});
+
       const addToQueue = inputArray.map((item: any, index) => {
+        console.log('iterator------', 'item', item, index, context);
         return queue.add<Outputs>(async (): Promise<Outputs> => {
 					let itemOutput: Outputs = {};
           try {
             const node = rivet.callGraphNode.impl.create();
             const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
             itemOutput = await impl.process(item, context);
+            console.log('iterator------', 'itemOutput', itemOutput, impl, node);
           } catch (err) {
 						itemOutput['outputs' as PortId] = {
 							type: 'control-flow-excluded',
@@ -215,14 +213,18 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 						itemOutput['error' as PortId] = {
 							type: 'string',
 							value: `ItemIndex: ${index}; `  + rivet.getError(err).message,
-						};
+            };
+            console.log('iterator', err)
 					}
 					return itemOutput;
         }) as Promise<Outputs>;
       });
 
-			const results =	await Promise.all(addToQueue);
-			data.results = results;
+      await queue.onIdle();
+      const results = await Promise.all(addToQueue);
+      console.log('iterator -------', results, 'await queue')
+      
+			//data.results = results;
 			outputs['results' as PortId] = {
 				type: 'any[]',
 				value: results,
