@@ -761,6 +761,7 @@ function iteratorPluginNode(rivet) {
           id: "chunkSize",
           dataType: "number",
           title: "Chunk Size",
+          description: "The concurrency limit: The number of items to process at the same time.",
           data: data.chunkSize
         });
       }
@@ -782,7 +783,7 @@ function iteratorPluginNode(rivet) {
       return {
         contextMenuTitle: "Iterator Plugin",
         group: "Logic",
-        infoBoxBody: "This is an iterator plugin node.",
+        infoBoxBody: "This is an iterator plugin node.  This node will map over an array and process each item with the graph provided.",
         infoBoxTitle: "Iterator Plugin Node"
       };
     },
