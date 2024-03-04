@@ -33,7 +33,7 @@ export type IteratorPluginNodeData = {
   chunkSize: number;
   results: any[];
   inputArray: any[];
-	failFast: boolean;
+	errors: any[];
 };
 
 // Make sure you export functions that take in the Rivet library, so that you do not
@@ -57,7 +57,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
           chunkSize: 1,
           results: [],
           inputArray: [],
-					failFast: true,
+					errors: [],
         },
 
         // This is the default title of your node.
@@ -142,7 +142,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     getUIData(): NodeUIData {
       return {
         contextMenuTitle: "Iterator Plugin",
-        group: "Iterator",
+        group: "Logic",
         infoBoxBody: "This is an iterator plugin node.",
         infoBoxTitle: "Iterator Plugin Node",
       };
@@ -159,11 +159,6 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
           label: "Chunk Size",
           defaultValue: 1,
         },
-				{
-					type: "toggle",
-					dataKey: "failFast",
-					label: "Fail Fast",
-				}
       ];
     },
 
@@ -175,6 +170,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       return rivet.dedent`
         Iterator Plugin Node
         Data: ${data.results}
+				Errors: ${data.errors}
       `;
     },
 
@@ -187,9 +183,6 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       context: InternalProcessContext
     ): Promise<Outputs> {
       const outputs: Outputs = {};
-
-			const failFast = rivet.getInputOrData(data, inputData, "failFast", "boolean");
-
       const inputArray = rivet.getInputOrData(
         data,
         inputData,
@@ -207,37 +200,34 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       const queue = new PQueue({ concurrency: chunkSize });
 
       const addToQueue = inputArray.map((item: any, index) => {
-        return queue.add(() => {
+        return queue.add<Outputs>(async (): Promise<Outputs> => {
+					let itemOutput: Outputs = {};
           try {
             const node = rivet.callGraphNode.impl.create();
             const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
-            return impl.process(item, context);
-          } catch (cause) {
-            return Promise.reject({
-							kind: 'error',
-							cause,
-							index
-						});
-          }
-        });
+            itemOutput = await impl.process(item, context);
+          } catch (err) {
+						itemOutput['outputs' as PortId] = {
+							type: 'control-flow-excluded',
+							value: undefined,
+						};
+			
+						itemOutput['error' as PortId] = {
+							type: 'string',
+							value: `ItemIndex: ${index}; `  + rivet.getError(err).message,
+						};
+					}
+					return itemOutput;
+        }) as Promise<Outputs>;
       });
 
-			try {
-				if (failFast) {
-					await Promise.all(addToQueue);
-					await queue.clear();
-				} else {
-					await Promise.allSettled(addToQueue)
-					await queue.onIdle();
-				}
-				
-			} catch (cause) {
-				// Handle any errors that occurred during processing or waiting for the queue
-				console.error('An error occurred during processing:', cause);
-				// Depending on your needs, you can rethrow the error or handle it accordingly
-			}
-
-
+			const results =	await Promise.all(addToQueue);
+			data.results = results;
+			outputs['results' as PortId] = {
+				type: 'any[]',
+				value: results,
+			};
+			return outputs;
     },
   };
 

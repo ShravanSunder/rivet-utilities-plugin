@@ -1,7 +1,7 @@
 {
-  "name": "rivet-plugin-example",
+  "name": "rivet-utilities-plugin",
   "packageManager": "yarn@3.5.0",
-  "version": "0.0.3",
+  "version": "0.0.1",
   "type": "module",
   "main": "dist/bundle.js",
   "files": [
