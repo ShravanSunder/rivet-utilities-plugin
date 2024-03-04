@@ -151,6 +151,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
           dataKey: "chunkSize",
           label: "Chunk size",
           defaultValue: 1,
+          helperMessage: "The number of items to process at the same time.  This will help process arrays quickly while not overloading the system.  Recommended to keep this below 10 for subgraphs that make network calls or stream model responses.",
           useInputToggleDataKey: "useChunkSizeToggle",
         },
       ];
