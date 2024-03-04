@@ -710,6 +710,9 @@ onEvent_fn = async function(event, filter) {
   });
 };
 
+// public/iterator plugin info.png
+var iterator_plugin_info_default = "./iterator plugin info-LVNK74FJ.png";
+
 // src/nodes/IteratorPluginNode.ts
 function iteratorPluginNode(rivet) {
   const IteratorPluginNodeImpl = {
@@ -784,7 +787,8 @@ function iteratorPluginNode(rivet) {
         contextMenuTitle: "Iterator Plugin",
         group: "Logic",
         infoBoxBody: "This is an iterator plugin node.  This node will map over an array and process each item with the graph provided.",
-        infoBoxTitle: "Iterator Plugin Node"
+        infoBoxTitle: "Iterator Plugin Node",
+        infoBoxImageUri: iterator_plugin_info_default
       };
     },
     // This function defines all editors that appear when you edit your node.
@@ -813,8 +817,14 @@ function iteratorPluginNode(rivet) {
     // must also correspond to the output definitions you defined in the getOutputDefinitions function.
     async process(data, inputData, context) {
       const outputs = {};
-      const graph = rivet.coerceType(inputData["graph"], "graph-reference");
-      const inputArray = rivet.coerceType(inputData["inputArray"], "any[]");
+      const graph = rivet.coerceType(
+        inputData["graph"],
+        "graph-reference"
+      );
+      const inputArray = rivet.coerceType(
+        inputData["inputArray"],
+        "any[]"
+      );
       let chunkSize = rivet.coerceTypeOptional(inputData["chunkSize"], "number") ?? data.chunkSize;
       chunkSize = chunkSize > 0 ? chunkSize : 1;
       const invalidGraphInputs = inputArray.some((f) => typeof f != "object");
@@ -867,7 +877,10 @@ function iteratorPluginNode(rivet) {
       return outputs;
     }
   };
-  const iteratorPluginNode2 = rivet.pluginNodeDefinition(IteratorPluginNodeImpl, "Iterator Plugin Node");
+  const iteratorPluginNode2 = rivet.pluginNodeDefinition(
+    IteratorPluginNodeImpl,
+    "Iterator Plugin Node"
+  );
   return iteratorPluginNode2;
 }
 

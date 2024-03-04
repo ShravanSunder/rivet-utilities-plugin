@@ -78,6 +78,7 @@ const options = {
   format: "esm",
   logLevel: "info",
   minify: false,
+  loader: {'.png': 'file'},
   sourcemap: true,
   plugins: [] as esbuild.Plugin[],
 } satisfies esbuild.BuildOptions;
