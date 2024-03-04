@@ -13,3 +13,5 @@ See [Rivet Plugins](https://rivet.ironcladapp.com/docs/user-guide/plugins) for m
 This was forked from: This project is an example of a [Rivet](https://github.com/Ironclad/rivet) plugin. It is a minimal TypeScript Rivet plugin that adds a single node called Example Plugin Node.
 
 > See [Rivet Example Plugin](https://github.com/Ironclad/rivet) on details on plugin architecture and building it
+
+Use `pnpm` to build and install
