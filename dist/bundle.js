@@ -724,7 +724,8 @@ function iteratorPluginNode(rivet) {
           chunkSize: 1,
           results: [],
           inputArray: [],
-          errors: []
+          errors: [],
+          graph: void 0
         },
         // This is the default title of your node.
         title: "Iterator Plugin Node",
@@ -764,13 +765,6 @@ function iteratorPluginNode(rivet) {
           title: "Chunk Size"
         });
       }
-      inputs.push({
-        id: "failFast",
-        dataType: "boolean",
-        title: "Fail Fast",
-        defaultValue: true,
-        description: "If true, the node will fail as soon as any of the iterations fail."
-      });
       return inputs;
     },
     // This function should return all output ports for your node, given its data, connections, all other nodes, and the project. The
@@ -817,6 +811,7 @@ function iteratorPluginNode(rivet) {
     // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
     // must also correspond to the output definitions you defined in the getOutputDefinitions function.
     async process(data, inputData, context) {
+      console.log("iterator ----", "started", "---------------");
       const outputs = {};
       const inputArray = rivet.getInputOrData(
         data,
@@ -830,15 +825,24 @@ function iteratorPluginNode(rivet) {
         "chunkSize",
         "number"
       );
+      const graphName = rivet.getInputOrData(data, inputData, "graph", "string");
       chunkSize = chunkSize > 0 ? chunkSize : 1;
       const queue = new PQueue({ concurrency: chunkSize });
+      console.log("iterator -------", "start queue");
+      console.log("iterator ------", data, { inputArray, chunkSize });
       const addToQueue = inputArray.map((item, index) => {
+        console.log("iterator------", "item", item, index, context);
         return queue.add(async () => {
           let itemOutput = {};
           try {
             const node = rivet.callGraphNode.impl.create();
             const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
-            itemOutput = await impl.process(item, context);
+            const graphInput = {
+              graph: graphName,
+              inputs: item
+            };
+            itemOutput = await impl.process(graphInput, context);
+            console.log("iterator------", "itemOutput", itemOutput, impl, node);
           } catch (err) {
             itemOutput["outputs"] = {
               type: "control-flow-excluded",
@@ -848,12 +852,14 @@ function iteratorPluginNode(rivet) {
               type: "string",
               value: `ItemIndex: ${index}; ` + rivet.getError(err).message
             };
+            console.log("iterator", err);
           }
           return itemOutput;
         });
       });
+      await queue.onIdle();
       const results = await Promise.all(addToQueue);
-      data.results = results;
+      console.log("iterator -------", results, "await queue");
       outputs["results"] = {
         type: "any[]",
         value: results
@@ -904,3 +910,4 @@ var src_default = plugin;
 export {
   src_default as default
 };
+//# sourceMappingURL=bundle.js.map
