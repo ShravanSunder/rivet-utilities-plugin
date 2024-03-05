@@ -717,7 +717,8 @@ var iterator_plugin_info_default = "./iterator plugin info-LVNK74FJ.png";
 var callGraphConnectionIds = {
   graph: "graph",
   inputs: "inputs",
-  outputs: "outputs"
+  outputs: "outputs",
+  error: "error"
 };
 var iteratorConnectionIds = {
   iteratorInputs: "iteratorInputs",
@@ -957,9 +958,9 @@ function iteratorPluginNode(rivet) {
               type: "control-flow-excluded",
               value: void 0
             };
-            itemOutput[callGraphConnectionIds.outputs] = {
+            itemOutput[callGraphConnectionIds.error] = {
               type: "string",
-              value: `Error running graph ${graphRef.graphName}.  ItemIndex: ${index}.  Inputs: ${item}  ${rivet.getError(err).message}`
+              value: `Error running graph ${graphRef.graphName}.  ItemIndex: ${index}::  Inputs: ${item}  Message: ${rivet.getError(err).message}`
             };
             abortIteration = true;
           }
@@ -978,11 +979,7 @@ function iteratorPluginNode(rivet) {
         };
         outputs[iteratorConnectionIds.iteratorError] = {
           type: "string",
-          value: iteratorOutputs.filter((f) => f[callGraphConnectionIds.outputs]?.type == "control-flow-excluded").map((m) => m[callGraphConnectionIds.outputs]?.value).join("; ")
-        };
-        outputs[iteratorConnectionIds.iteratorOutputs] = {
-          type: "object[]",
-          value: iteratorOutputs
+          value: iteratorOutputs.filter((f) => f[callGraphConnectionIds.outputs]?.type == "control-flow-excluded").map((m, i) => `ItemIndex: ${i}:: ${m[callGraphConnectionIds.error]}`).join("; ")
         };
         return outputs;
       }

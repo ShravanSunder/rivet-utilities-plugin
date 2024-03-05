@@ -49,6 +49,7 @@ const callGraphConnectionIds = {
   graph: "graph" as PortId,
   inputs: "inputs" as PortId,
   outputs: "outputs" as PortId,
+  error: "error" as PortId,
 } as const;
 
 const iteratorConnectionIds = {
@@ -401,11 +402,11 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
               value: undefined,
             };
 
-            itemOutput[callGraphConnectionIds.outputs] = {
+            itemOutput[callGraphConnectionIds.error] = {
               type: "string",
               value: `Error running graph ${
                 graphRef.graphName
-              }.  ItemIndex: ${index}.  Inputs: ${item}  ${
+              }.  ItemIndex: ${index}::  Inputs: ${item}  Message: ${
                 rivet.getError(err).message
               }`,
             };
@@ -429,11 +430,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         };
         outputs[iteratorConnectionIds.iteratorError] = {
           type: "string",
-          value: iteratorOutputs.filter(f => f[callGraphConnectionIds.outputs]?.type == "control-flow-excluded").map(m => m[callGraphConnectionIds.outputs]?.value).join("; "),
-        };
-        outputs[iteratorConnectionIds.iteratorOutputs] = {
-          type: "object[]",
-          value: iteratorOutputs,
+          value: iteratorOutputs.filter(f => f[callGraphConnectionIds.outputs]?.type == "control-flow-excluded").map((m, i) => `ItemIndex: ${i}:: ${m[callGraphConnectionIds.error]}`).join("; "),
         };
         return outputs;
       }
