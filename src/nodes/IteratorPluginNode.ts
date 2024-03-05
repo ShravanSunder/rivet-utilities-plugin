@@ -23,6 +23,7 @@ import type {
   isArrayDataType,
   isFunctionDataType,
   NodeGraph,
+  LooseDataValue,
 } from "@ironclad/rivet-core";
 import PQueue from "p-queue";
 
@@ -69,6 +70,12 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       itemKeys = Object.keys(item.value);
     }
 
+    let itemValues = Object.values(item);
+    if (isObjectDataValue(item)) {
+      console.log("iterator", "is datavalue", { item });
+      itemValues = Object.values(item.value);
+    }
+
     console.log("iterator", "validateInputItem", { itemKeys });
 
     /**
@@ -94,10 +101,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     }
 
 
-    let itemValues = Object.values(item);
-    if (isObjectDataValue(item)) {
-      itemValues = Object.values(item.value);
-    }
+    
     const invalidData = itemValues.some((s: any) => {
       console.log("iterator", "validateInputItem", { s });
       /**
@@ -310,11 +314,11 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         outputs["error" as PortId] = {
           type: "string",
           value:
-            "Input validation error: The input array must have objects with keys that match the graph's input ports.  This should be an array of objects. Each object should be a DataValue;; Missing keys: " +
+            "Input validation error: The input array must have objects with keys that match the graph's input ports.  This should be an array of objects. Each object should be a DataValue. Missing keys:: " +
             Array.from(missingKeys)
               .map((key) => `'${key}'`)
               .join("; ") +
-            ";; Invalid DataValues: " +
+            "; Invalid DataValues:: " +
             Array.from(notDataValue)
               .map((value) => `'${JSON.stringify(value)}'`)
               .join("; "),

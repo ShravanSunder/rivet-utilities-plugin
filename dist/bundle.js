@@ -726,6 +726,11 @@ function iteratorPluginNode(rivet) {
     if (isObjectDataValue(item)) {
       itemKeys = Object.keys(item.value);
     }
+    let itemValues = Object.values(item);
+    if (isObjectDataValue(item)) {
+      console.log("iterator", "is datavalue", { item });
+      itemValues = Object.values(item.value);
+    }
     console.log("iterator", "validateInputItem", { itemKeys });
     const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
     const expectedKeys = graphInputNodes.map((m) => {
@@ -735,10 +740,6 @@ function iteratorPluginNode(rivet) {
     if (expectedKeys.some((s) => !itemKeys.includes(s))) {
       expectedKeys.filter((key) => !itemKeys.includes(key)).forEach((key) => missingKeys.add(key));
       return true;
-    }
-    let itemValues = Object.values(item);
-    if (isObjectDataValue(item)) {
-      itemValues = Object.values(item.value);
     }
     const invalidData = itemValues.some((s) => {
       console.log("iterator", "validateInputItem", { s });
@@ -892,7 +893,7 @@ function iteratorPluginNode(rivet) {
         };
         outputs["error"] = {
           type: "string",
-          value: "Input validation error: The input array must have objects with keys that match the graph's input ports.  This should be an array of objects. Each object should be a DataValue;; Missing keys: " + Array.from(missingKeys).map((key) => `'${key}'`).join("; ") + ";; Invalid DataValues: " + Array.from(notDataValue).map((value) => `'${JSON.stringify(value)}'`).join("; ")
+          value: "Input validation error: The input array must have objects with keys that match the graph's input ports.  This should be an array of objects. Each object should be a DataValue. Missing keys:: " + Array.from(missingKeys).map((key) => `'${key}'`).join("; ") + "; Invalid DataValues:: " + Array.from(notDataValue).map((value) => `'${JSON.stringify(value)}'`).join("; ")
         };
         return outputs;
       }
