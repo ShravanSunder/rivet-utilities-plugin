@@ -852,6 +852,10 @@ function iteratorPluginNode(rivet) {
     // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
     // must also correspond to the output definitions you defined in the getOutputDefinitions function.
     async process(data, inputData, context) {
+      let abortIteration = false;
+      context.signal.addEventListener("abort", () => {
+        abortIteration = true;
+      });
       const outputs = {};
       const graphRef = rivet.coerceType(
         inputData["graph"],
@@ -879,12 +883,15 @@ function iteratorPluginNode(rivet) {
       const graph = context.project.graphs[graphRef.graphId];
       const missingKeys = /* @__PURE__ */ new Set();
       const notDataValue = /* @__PURE__ */ new Set();
-      const invalidInputs = inputsArray.some(
-        (s) => {
-          console.log("iterator", "validateInputItem", { s, graph, missingKeys, notDataValue });
-          return validateInputItem(s, graph, missingKeys, notDataValue);
-        }
-      );
+      const invalidInputs = inputsArray.some((s) => {
+        console.log("iterator", "validateInputItem", {
+          s,
+          graph,
+          missingKeys,
+          notDataValue
+        });
+        return validateInputItem(s, graph, missingKeys, notDataValue);
+      });
       console.log("iterator", "invalidInputs", { invalidInputs });
       if (invalidInputs) {
         outputs["results"] = {
@@ -897,13 +904,12 @@ function iteratorPluginNode(rivet) {
         };
         return outputs;
       }
-      let abort = false;
       const queue = new PQueue({ concurrency: chunkSize });
       const addToQueue = inputsArray.map((item, index) => {
         return queue.add(async () => {
           let itemOutput = {};
           try {
-            if (!abort) {
+            if (!abortIteration) {
               const node = rivet.callGraphNode.impl.create();
               const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
               let itemDataValue = {
@@ -934,7 +940,7 @@ function iteratorPluginNode(rivet) {
               type: "string",
               value: `Error running graph ${graphRef.graphName}.  ItemIndex: ${index}.  Inputs: ${item}  ${rivet.getError(err).message}`
             };
-            abort = true;
+            abortIteration = true;
           }
           return itemOutput;
         });

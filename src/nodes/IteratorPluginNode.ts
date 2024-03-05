@@ -56,7 +56,11 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     );
   };
   const isObjectDataValue = (data: any): data is ObjectDataValue => {
-    return typeof data =="object" && data?.type == "object" && typeof data?.value == "object";
+    return (
+      typeof data == "object" &&
+      data?.type == "object" &&
+      typeof data?.value == "object"
+    );
   };
 
   const validateInputItem = (
@@ -100,8 +104,6 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       return true;
     }
 
-
-    
     const invalidData = itemValues.some((s: any) => {
       console.log("iterator", "validateInputItem", { s });
       /**
@@ -261,8 +263,12 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       inputData: Inputs,
       context: InternalProcessContext
     ): Promise<Outputs> {
-      const outputs: Outputs = {};
+      let abortIteration = false;
+      context.signal.addEventListener("abort", () => {
+        abortIteration = true;
+      });
 
+      const outputs: Outputs = {};
       // get the inputs
       const graphRef = rivet.coerceType(
         inputData["graph" as PortId],
@@ -299,12 +305,15 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       // validate input items to make sure they have all  keys of the  graph's input ports
       const missingKeys = new Set<string>();
       const notDataValue = new Set<string>();
-      const invalidInputs = inputsArray.some((s) =>
-      {
-        console.log("iterator", "validateInputItem", { s, graph, missingKeys, notDataValue })
-        return validateInputItem(s, graph, missingKeys, notDataValue)
-      }
-      );
+      const invalidInputs = inputsArray.some((s) => {
+        console.log("iterator", "validateInputItem", {
+          s,
+          graph,
+          missingKeys,
+          notDataValue,
+        });
+        return validateInputItem(s, graph, missingKeys, notDataValue);
+      });
       console.log("iterator", "invalidInputs", { invalidInputs });
       if (invalidInputs) {
         outputs["results" as PortId] = {
@@ -326,14 +335,13 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         return outputs;
       }
 
-      let abort = false;
       // create a queue to process the array
       const queue = new PQueue({ concurrency: chunkSize });
       const addToQueue = inputsArray.map((item: any, index) => {
         return queue.add<Outputs>(async (): Promise<Outputs> => {
           let itemOutput: Outputs = {};
           try {
-            if (!abort) {
+            if (!abortIteration) {
               // create a call graph node
               const node = rivet.callGraphNode.impl.create();
               const impl =
@@ -377,7 +385,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
                 rivet.getError(err).message
               }`,
             };
-            abort = true;
+            abortIteration = true;
           }
           return itemOutput;
         }) as Promise<Outputs>;
