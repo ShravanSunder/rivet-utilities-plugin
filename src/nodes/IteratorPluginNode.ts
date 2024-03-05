@@ -22,6 +22,7 @@ import type {
   isScalarDataType,
   isArrayDataType,
   isFunctionDataType,
+  NodeGraph,
 } from "@ironclad/rivet-core";
 import PQueue from "p-queue";
 
@@ -43,6 +44,72 @@ export type IteratorPluginNodeData = {
 // Make sure you export functions that take in the Rivet library, so that you do not
 // import the entire Rivet core library in your plugin.
 export function iteratorPluginNode(rivet: typeof Rivet) {
+  const isAnyDataValue = (data: any): data is { type: string; value: any } => {
+    return (
+      typeof data == "object" &&
+      "type" in data &&
+      "value" in data &&
+      (rivet.isScalarDataType(data.type) ||
+        rivet.isArrayDataType(data.type) ||
+        rivet.isFunctionDataType(data.type))
+    );
+  };
+  const isObjectDataValue = (data: any): data is ObjectDataValue => {
+    return typeof data =="object" && data?.type == "object" && typeof data?.value == "object";
+  };
+
+  const validateInputItem = (
+    item: Record<string, unknown>,
+    graph: NodeGraph,
+    missingKeys: Set<string>,
+    notDataValue: Set<string>
+  ) => {
+    let itemProvidedKeys = Object.keys(item);
+    if (isObjectDataValue(item)) {
+      itemProvidedKeys = Object.keys(item.value);
+    }
+
+    console.log("iterator", "validateInputItem", { itemProvidedKeys });
+
+    /**
+     * expected keys are the ids of the graph's input nodes, if they exist
+     */
+
+    const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
+    const expectedKeys = graphInputNodes
+      .map((m) => {
+        const id = (m.data as Record<string, unknown>)["id"] as string;
+        return id ?? null;
+      })
+      .filter((f) => f != null);
+
+    /**
+     * if expected keys aren't in the item keys, then the item is invalid
+     */
+    if (expectedKeys.some((s) => !itemProvidedKeys.includes(s))) {
+      expectedKeys
+        .filter((key) => !itemProvidedKeys.includes(key))
+        .forEach((key) => missingKeys.add(key));
+      return true;
+    }
+
+    const itemValues = Object.values(item);
+    const invalidData = itemValues.some((s: any) => {
+      /**
+       * if the item values aren't DataValues, then the item is invalid
+       */
+      const isDataType = isAnyDataValue(s);
+      if (!isDataType) {
+        /**
+         * save the key that isn't a DataValue
+         */
+        notDataValue.add(s);
+        return true;
+      }
+    });
+    return invalidData;
+  };
+
   /**
    * key is node id.  value is the index of the chunk[0] that the node is currently processing
    */
@@ -185,57 +252,6 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       inputData: Inputs,
       context: InternalProcessContext
     ): Promise<Outputs> {
-
-      const isAnyDataValue = (s: any): s is { type: string;  value: any} => {
-        return 'type' in s && 'value' in s && (rivet.isScalarDataType(s.type) || rivet.isArrayDataType(s.type) || rivet.isFunctionDataType(s.type));
-      }
-      const isObjectDataValue = (s: any): s is ObjectDataValue => {
-        return s.type == "object" && typeof s.value == "object";
-      }
-
-      const validateInputItem = (item: Record<string, unknown>, missingKeys: Set<string>, notDataValue: Set<string>) => {
-        let itemProvidedKeys = Object.keys(item);
-        if (isAnyDataValue(item)) {
-          itemProvidedKeys = Object.keys(item.value);
-        }
-
-        /**
-         * expected keys are the ids of the graph's input nodes, if they exist
-         */
-        const expectedKeys = graphInputNodes
-          .map((m) => {
-            const id = (m.data as Record<string, unknown>)["id"] as string;
-            return id ?? null;
-          })
-          .filter((f) => f != null);
-
-        /**
-         * if expected keys aren't in the item keys, then the item is invalid
-         */
-        if (expectedKeys.some((s) => !itemProvidedKeys.includes(s))) {
-          expectedKeys
-            .filter((key) => !itemProvidedKeys.includes(key))
-            .forEach((key) => missingKeys.add(key));
-          return true;
-        }
-
-        const itemValues = Object.values(item);
-        const invalidData = itemValues.some((s: any) => {
-          /**
-           * if the item values aren't DataValues, then the item is invalid
-           */
-          const isDataType = isAnyDataValue(s);
-          if (!isDataType) {
-            /**
-             * save the key that isn't a DataValue
-             */
-            notDataValue.add(s);
-            return true;
-          }
-        });
-        return invalidData;
-      }
-
       const outputs: Outputs = {};
 
       // get the inputs
@@ -267,15 +283,20 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         return outputs;
       }
 
-      console.log("iterator", "inputData", {inputData});
+      console.log("iterator", "inputData", { inputData });
 
       const graph = context.project.graphs[graphRef.graphId];
-      const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
 
       // validate input items to make sure they have all  keys of the  graph's input ports
       const missingKeys = new Set<string>();
       const notDataValue = new Set<string>();
-      const invalidInputs = inputsArray.some(s => validateInputItem(s, missingKeys, notDataValue));
+      const invalidInputs = inputsArray.some((s) =>
+      {
+        console.log("iterator", "validateInputItem", { s, graph, missingKeys, notDataValue })
+        return validateInputItem(s, graph, missingKeys, notDataValue)
+      }
+      );
+      console.log("iterator", "invalidInputs", { invalidInputs });
       if (invalidInputs) {
         outputs["results" as PortId] = {
           type: "control-flow-excluded",
@@ -323,7 +344,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
                 ["inputs" as PortId]: itemDataValue,
               };
 
-              console.log("iterator itemdatavalue", {itemDataValue});
+              console.log("iterator itemdatavalue", { itemDataValue });
 
               // process the graph
               itemOutput = await impl.process(iteratorInputData, context);

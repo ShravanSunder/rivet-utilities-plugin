@@ -715,6 +715,37 @@ var iterator_plugin_info_default = "./iterator plugin info-LVNK74FJ.png";
 
 // src/nodes/IteratorPluginNode.ts
 function iteratorPluginNode(rivet) {
+  const isAnyDataValue = (data) => {
+    return typeof data == "object" && "type" in data && "value" in data && (rivet.isScalarDataType(data.type) || rivet.isArrayDataType(data.type) || rivet.isFunctionDataType(data.type));
+  };
+  const isObjectDataValue = (data) => {
+    return typeof data == "object" && data?.type == "object" && typeof data?.value == "object";
+  };
+  const validateInputItem = (item, graph, missingKeys, notDataValue) => {
+    let itemProvidedKeys = Object.keys(item);
+    if (isObjectDataValue(item)) {
+      itemProvidedKeys = Object.keys(item.value);
+    }
+    console.log("iterator", "validateInputItem", { itemProvidedKeys });
+    const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
+    const expectedKeys = graphInputNodes.map((m) => {
+      const id = m.data["id"];
+      return id ?? null;
+    }).filter((f) => f != null);
+    if (expectedKeys.some((s) => !itemProvidedKeys.includes(s))) {
+      expectedKeys.filter((key) => !itemProvidedKeys.includes(key)).forEach((key) => missingKeys.add(key));
+      return true;
+    }
+    const itemValues = Object.values(item);
+    const invalidData = itemValues.some((s) => {
+      const isDataType = isAnyDataValue(s);
+      if (!isDataType) {
+        notDataValue.add(s);
+        return true;
+      }
+    });
+    return invalidData;
+  };
   const IteratorPluginNodeImpl = {
     // This should create a new instance of your node type from scratch.
     create() {
@@ -816,35 +847,6 @@ function iteratorPluginNode(rivet) {
     // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
     // must also correspond to the output definitions you defined in the getOutputDefinitions function.
     async process(data, inputData, context) {
-      const isAnyDataValue = (s) => {
-        return "type" in s && "value" in s && (rivet.isScalarDataType(s.type) || rivet.isArrayDataType(s.type) || rivet.isFunctionDataType(s.type));
-      };
-      const isObjectDataValue = (s) => {
-        return s.type == "object" && typeof s.value == "object";
-      };
-      const validateInputItem = (item, missingKeys2, notDataValue2) => {
-        let itemProvidedKeys = Object.keys(item);
-        if (isAnyDataValue(item)) {
-          itemProvidedKeys = Object.keys(item.value);
-        }
-        const expectedKeys = graphInputNodes.map((m) => {
-          const id = m.data["id"];
-          return id ?? null;
-        }).filter((f) => f != null);
-        if (expectedKeys.some((s) => !itemProvidedKeys.includes(s))) {
-          expectedKeys.filter((key) => !itemProvidedKeys.includes(key)).forEach((key) => missingKeys2.add(key));
-          return true;
-        }
-        const itemValues = Object.values(item);
-        const invalidData = itemValues.some((s) => {
-          const isDataType = isAnyDataValue(s);
-          if (!isDataType) {
-            notDataValue2.add(s);
-            return true;
-          }
-        });
-        return invalidData;
-      };
       const outputs = {};
       const graphRef = rivet.coerceType(
         inputData["graph"],
@@ -870,10 +872,15 @@ function iteratorPluginNode(rivet) {
       }
       console.log("iterator", "inputData", { inputData });
       const graph = context.project.graphs[graphRef.graphId];
-      const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
       const missingKeys = /* @__PURE__ */ new Set();
       const notDataValue = /* @__PURE__ */ new Set();
-      const invalidInputs = inputsArray.some((s) => validateInputItem(s, missingKeys, notDataValue));
+      const invalidInputs = inputsArray.some(
+        (s) => {
+          console.log("iterator", "validateInputItem", { s, graph, missingKeys, notDataValue });
+          return validateInputItem(s, graph, missingKeys, notDataValue);
+        }
+      );
+      console.log("iterator", "invalidInputs", { invalidInputs });
       if (invalidInputs) {
         outputs["results"] = {
           type: "control-flow-excluded",
