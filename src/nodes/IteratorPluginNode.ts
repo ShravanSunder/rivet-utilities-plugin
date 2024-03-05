@@ -126,9 +126,9 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     ): NodeOutputDefinition[] {
       return [
         {
-          id: "outputData" as PortId,
+          id: "results" as PortId,
           dataType: "object[]",
-          title: "Output Data",
+          title: "Iterator Results",
         },
       ];
     },
@@ -184,22 +184,24 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       const outputs: Outputs = {};
 
       // get the inputs
-      const graph = rivet.coerceType(
+      const graphRef = rivet.coerceType(
         inputData["graph" as PortId],
         "graph-reference"
       );
       const inputArray = rivet.coerceType(
         inputData["inputArray" as PortId],
-        "any[]"
+        "object[]"
       );
       let chunkSize =
         rivet.coerceTypeOptional(inputData["chunkSize" as PortId], "number") ??
         data.chunkSize;
       chunkSize = chunkSize > 0 ? chunkSize : 1;
 
+
+      console.log('iterator', chunkSize, inputArray, graphRef, inputData);
       // validate input array
-      const invalidGraphInputs = inputArray.some((f) => typeof f != "object");
-      if (invalidGraphInputs) {
+      const allItemsAreObjects = inputArray.some((s) => typeof s != "object");
+      if (allItemsAreObjects) {
         outputs["results" as PortId] = {
           type: "control-flow-excluded",
           value: undefined,
@@ -212,28 +214,71 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         return outputs;
       }
 
+      const graph = context.project.graphs[graphRef.graphId];
+      const graphInputNodes = graph.nodes.filter(f => f.type == 'graphInput');
+      console.log('iterator', graphInputNodes, graph.connections);
+      
+      
+      const missingKeys = new Set<string>();
+      const invalidInputs = inputArray.some(i => {
+        const providedKeys = Object.keys(i);
+        const expectedKeys = graphInputNodes.map(m => {
+          const id = (m.data as Record<string, unknown>)['id'] as string;
+          return id ?? null
+        }).filter(f => f != null);
+        if (expectedKeys.some(s => !providedKeys.includes(s))) {
+          expectedKeys.filter(key => !providedKeys.includes(key)).forEach(key => missingKeys.add(key));
+          return true;
+        }
+      });
+
+      if (invalidInputs) {
+        outputs["results" as PortId] = {
+          type: "control-flow-excluded",
+          value: undefined,
+        };
+        outputs["error" as PortId] = {
+          type: "string",
+          value:
+            "The input array must have objects with keys that match the graph's input ports.  Graph input ports: " + Array.from(missingKeys).map(key => `'${key}'`).join(", "),
+        };
+        return outputs;
+      }
+      
+
+      let abort = false;
       // create a queue to process the array
       const queue = new PQueue({ concurrency: chunkSize });
       const addToQueue = inputArray.map((item: any, index) => {
         return queue.add<Outputs>(async (): Promise<Outputs> => {
           let itemOutput: Outputs = {};
           try {
-            // create a call graph node
-            const node = rivet.callGraphNode.impl.create();
-            const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
+            if (!abort) {
+              // create a call graph node
+              const node = rivet.callGraphNode.impl.create();
+              const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
 
-            // set the inputs
-            const itemDatavalue: ObjectDataValue = {
-              type: "object",
-              value: item,
-            };
-            const iteratorInputData: Inputs = {
-              ["graph" as PortId]: inputData["graph" as PortId],
-              ["inputs" as PortId]: itemDatavalue,
-            };
+              // set the inputs
+              const itemDataValue: ObjectDataValue = {
+                type: "object",
+                value: item,
+              };
+              const iteratorInputData: Inputs = {
+                ["graph" as PortId]: inputData["graph" as PortId],
+                ["inputs" as PortId]: itemDataValue,
+              };
 
-            // process the graph
-            itemOutput = await impl.process(iteratorInputData, context);
+              console.log('iterator', iteratorInputData, itemDataValue)
+
+              // process the graph
+              itemOutput = await impl.process(iteratorInputData, context);
+            }
+            else {
+              itemOutput["outputs" as PortId] = {
+                type: "control-flow-excluded",
+                value: undefined,
+              };
+            }
           } catch (err) {
             itemOutput["outputs" as PortId] = {
               type: "control-flow-excluded",
@@ -242,12 +287,13 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 
             itemOutput["error" as PortId] = {
               type: "string",
-              value: `There is an error running the graph ${
-                graph.graphName
+              value: `Error running graph ${
+                graphRef.graphName
               }.  ItemIndex: ${index}.  Inputs: ${item}  ${
                 rivet.getError(err).message
               }`,
             };
+            abort = true;
           }
           return itemOutput;
         }) as Promise<Outputs>;
@@ -256,6 +302,25 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       // wait for queue to finish
       const results = await Promise.all(addToQueue);
       await queue.onIdle();
+
+      const errorInResults = results.some((f) => f["outputs" as PortId]?.type == "control-flow-excluded");
+      if (errorInResults) {
+        outputs["results" as PortId] = {
+          type: "control-flow-excluded",
+          value: undefined,
+        };
+        outputs["error" as PortId] = {
+          type: "string",
+          value:
+            "Error processing items.",
+        };
+        outputs["outputs" as PortId] = {
+          type: "object[]",
+          value: results,
+        };
+        return outputs;
+      }
+      
 
       // process results
       outputs["results" as PortId] = {
