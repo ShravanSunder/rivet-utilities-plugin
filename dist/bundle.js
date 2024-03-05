@@ -753,10 +753,10 @@ function iteratorPluginNode(rivet) {
         required: true
       });
       inputs.push({
-        id: "inputArray",
+        id: "inputsArray",
         dataType: "object[]",
         title: "Input Array",
-        description: "The array to iterate over.",
+        description: "The array to iterate over.  This should be an array of objects.  Each object should be a DataValue.  The graph needs an object with keys that match the graph's input ports.",
         required: true
       });
       if (data.useChunkSizeToggle) {
@@ -816,19 +816,47 @@ function iteratorPluginNode(rivet) {
     // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
     // must also correspond to the output definitions you defined in the getOutputDefinitions function.
     async process(data, inputData, context) {
+      const isAnyDataValue = (s) => {
+        return "type" in s && "value" in s && (rivet.isScalarDataType(s.type) || rivet.isArrayDataType(s.type) || rivet.isFunctionDataType(s.type));
+      };
+      const isObjectDataValue = (s) => {
+        return s.type == "object" && typeof s.value == "object";
+      };
+      const validateInputItem = (item, missingKeys2, notDataValue2) => {
+        let itemProvidedKeys = Object.keys(item);
+        if (isAnyDataValue(item)) {
+          itemProvidedKeys = Object.keys(item.value);
+        }
+        const expectedKeys = graphInputNodes.map((m) => {
+          const id = m.data["id"];
+          return id ?? null;
+        }).filter((f) => f != null);
+        if (expectedKeys.some((s) => !itemProvidedKeys.includes(s))) {
+          expectedKeys.filter((key) => !itemProvidedKeys.includes(key)).forEach((key) => missingKeys2.add(key));
+          return true;
+        }
+        const itemValues = Object.values(item);
+        const invalidData = itemValues.some((s) => {
+          const isDataType = isAnyDataValue(s);
+          if (!isDataType) {
+            notDataValue2.add(s);
+            return true;
+          }
+        });
+        return invalidData;
+      };
       const outputs = {};
       const graphRef = rivet.coerceType(
         inputData["graph"],
         "graph-reference"
       );
-      const inputArray = rivet.coerceType(
-        inputData["inputArray"],
+      const inputsArray = rivet.coerceType(
+        inputData["inputsArray"],
         "object[]"
       );
       let chunkSize = rivet.coerceTypeOptional(inputData["chunkSize"], "number") ?? data.chunkSize;
       chunkSize = chunkSize > 0 ? chunkSize : 1;
-      console.log("iterator", chunkSize, inputArray, graphRef, inputData);
-      const allItemsAreObjects = inputArray.some((s) => typeof s != "object");
+      const allItemsAreObjects = inputsArray.some((s) => typeof s != "object");
       if (allItemsAreObjects) {
         outputs["results"] = {
           type: "control-flow-excluded",
@@ -836,25 +864,16 @@ function iteratorPluginNode(rivet) {
         };
         outputs["error"] = {
           type: "string",
-          value: "Input array must be an array of objects.  A graph needs an object with keys that match the graph's input ports"
+          value: "Input array must be an array of objects.  Each object needs to be a DataValue.  A graph needs an object with keys that match the graph's input ports"
         };
         return outputs;
       }
+      console.log("iterator", "inputData", { inputData });
       const graph = context.project.graphs[graphRef.graphId];
       const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
-      console.log("iterator", graphInputNodes, graph.connections);
       const missingKeys = /* @__PURE__ */ new Set();
-      const invalidInputs = inputArray.some((i) => {
-        const providedKeys = Object.keys(i);
-        const expectedKeys = graphInputNodes.map((m) => {
-          const id = m.data["id"];
-          return id ?? null;
-        }).filter((f) => f != null);
-        if (expectedKeys.some((s) => !providedKeys.includes(s))) {
-          expectedKeys.filter((key) => !providedKeys.includes(key)).forEach((key) => missingKeys.add(key));
-          return true;
-        }
-      });
+      const notDataValue = /* @__PURE__ */ new Set();
+      const invalidInputs = inputsArray.some((s) => validateInputItem(s, missingKeys, notDataValue));
       if (invalidInputs) {
         outputs["results"] = {
           type: "control-flow-excluded",
@@ -862,28 +881,31 @@ function iteratorPluginNode(rivet) {
         };
         outputs["error"] = {
           type: "string",
-          value: "The input array must have objects with keys that match the graph's input ports.  Graph input ports: " + Array.from(missingKeys).map((key) => `'${key}'`).join(", ")
+          value: "Input validation error: The input array must have objects with keys that match the graph's input ports.  This should be an array of objects. Each object should be a DataValue;; Missing keys: " + Array.from(missingKeys).map((key) => `'${key}'`).join("; ") + ";; Invalid DataValues: " + Array.from(notDataValue).map((value) => `'${JSON.stringify(value)}'`).join("; ")
         };
         return outputs;
       }
       let abort = false;
       const queue = new PQueue({ concurrency: chunkSize });
-      const addToQueue = inputArray.map((item, index) => {
+      const addToQueue = inputsArray.map((item, index) => {
         return queue.add(async () => {
           let itemOutput = {};
           try {
             if (!abort) {
               const node = rivet.callGraphNode.impl.create();
               const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
-              const itemDataValue = {
+              let itemDataValue = {
                 type: "object",
                 value: item
               };
+              if (isObjectDataValue(item)) {
+                itemDataValue = item;
+              }
               const iteratorInputData = {
                 ["graph"]: inputData["graph"],
                 ["inputs"]: itemDataValue
               };
-              console.log("iterator", iteratorInputData, itemDataValue);
+              console.log("iterator itemdatavalue", { itemDataValue });
               itemOutput = await impl.process(iteratorInputData, context);
             } else {
               itemOutput["outputs"] = {
@@ -907,7 +929,9 @@ function iteratorPluginNode(rivet) {
       });
       const results = await Promise.all(addToQueue);
       await queue.onIdle();
-      const errorInResults = results.some((f) => f["outputs"]?.type == "control-flow-excluded");
+      const errorInResults = results.some(
+        (f) => f["outputs"]?.type == "control-flow-excluded"
+      );
       if (errorInResults) {
         outputs["results"] = {
           type: "control-flow-excluded",
