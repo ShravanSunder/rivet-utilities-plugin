@@ -722,22 +722,26 @@ function iteratorPluginNode(rivet) {
     return typeof data == "object" && data?.type == "object" && typeof data?.value == "object";
   };
   const validateInputItem = (item, graph, missingKeys, notDataValue) => {
-    let itemProvidedKeys = Object.keys(item);
+    let itemKeys = Object.keys(item);
     if (isObjectDataValue(item)) {
-      itemProvidedKeys = Object.keys(item.value);
+      itemKeys = Object.keys(item.value);
     }
-    console.log("iterator", "validateInputItem", { itemProvidedKeys });
+    console.log("iterator", "validateInputItem", { itemKeys });
     const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
     const expectedKeys = graphInputNodes.map((m) => {
       const id = m.data["id"];
       return id ?? null;
     }).filter((f) => f != null);
-    if (expectedKeys.some((s) => !itemProvidedKeys.includes(s))) {
-      expectedKeys.filter((key) => !itemProvidedKeys.includes(key)).forEach((key) => missingKeys.add(key));
+    if (expectedKeys.some((s) => !itemKeys.includes(s))) {
+      expectedKeys.filter((key) => !itemKeys.includes(key)).forEach((key) => missingKeys.add(key));
       return true;
     }
-    const itemValues = Object.values(item);
+    let itemValues = Object.values(item);
+    if (isObjectDataValue(item)) {
+      itemValues = Object.values(item.value);
+    }
     const invalidData = itemValues.some((s) => {
+      console.log("iterator", "validateInputItem", { s });
       const isDataType = isAnyDataValue(s);
       if (!isDataType) {
         notDataValue.add(s);
@@ -786,7 +790,7 @@ function iteratorPluginNode(rivet) {
       inputs.push({
         id: "inputsArray",
         dataType: "object[]",
-        title: "Input Array",
+        title: "Inputs Array",
         description: "The array to iterate over.  This should be an array of objects.  Each object should be a DataValue.  The graph needs an object with keys that match the graph's input ports.",
         required: true
       });

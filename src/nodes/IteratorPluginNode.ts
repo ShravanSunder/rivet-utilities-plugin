@@ -64,12 +64,12 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     missingKeys: Set<string>,
     notDataValue: Set<string>
   ) => {
-    let itemProvidedKeys = Object.keys(item);
+    let itemKeys = Object.keys(item);
     if (isObjectDataValue(item)) {
-      itemProvidedKeys = Object.keys(item.value);
+      itemKeys = Object.keys(item.value);
     }
 
-    console.log("iterator", "validateInputItem", { itemProvidedKeys });
+    console.log("iterator", "validateInputItem", { itemKeys });
 
     /**
      * expected keys are the ids of the graph's input nodes, if they exist
@@ -86,15 +86,20 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
     /**
      * if expected keys aren't in the item keys, then the item is invalid
      */
-    if (expectedKeys.some((s) => !itemProvidedKeys.includes(s))) {
+    if (expectedKeys.some((s) => !itemKeys.includes(s))) {
       expectedKeys
-        .filter((key) => !itemProvidedKeys.includes(key))
+        .filter((key) => !itemKeys.includes(key))
         .forEach((key) => missingKeys.add(key));
       return true;
     }
 
-    const itemValues = Object.values(item);
+
+    let itemValues = Object.values(item);
+    if (isObjectDataValue(item)) {
+      itemValues = Object.values(item.value);
+    }
     const invalidData = itemValues.some((s: any) => {
+      console.log("iterator", "validateInputItem", { s });
       /**
        * if the item values aren't DataValues, then the item is invalid
        */
@@ -167,7 +172,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       inputs.push({
         id: "inputsArray" as PortId,
         dataType: "object[]",
-        title: "Input Array",
+        title: "Inputs Array",
         description:
           "The array to iterate over.  This should be an array of objects.  Each object should be a DataValue.  The graph needs an object with keys that match the graph's input ports.",
         required: true,
