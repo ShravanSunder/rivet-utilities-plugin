@@ -714,6 +714,11 @@ onEvent_fn = async function(event, filter) {
 var iterator_plugin_info_default = "./iterator plugin info-LVNK74FJ.png";
 
 // src/nodes/IteratorPluginNode.ts
+var sha256 = async (input) => {
+  const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  const hexHash = Array.from(new Uint8Array(buffer)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return hexHash;
+};
 var callGraphConnectionIds = {
   graph: "graph",
   inputs: "inputs",
@@ -725,45 +730,12 @@ var iteratorConnectionIds = {
   iteratorOutputs: "iteratorOutputs",
   graph: "graph",
   chunkSize: "chunkSize",
-  iteratorError: "error"
+  iteratorError: "error",
+  hasCache: "hasCache"
 };
+var iteratorInputOutputsHelperMessage = "Inputs must be an array of objects to iterate over.  Each object in the array should be a ObjectDataValue `{type: 'object', value: <graph inputs>}`; where <graph inputs> is of the format `{type: `object`, value: {<graph input id>: <input value>}}` The graph input id should match the graph's input ports.  The input value should be a DataValue. \n\n Ouputs will be an array of ObjectDataValue `type: `object`, value: {<graph output id>: <output value>}`";
 function iteratorPluginNode(rivet) {
-  const isAnyDataValue = (data) => {
-    return typeof data == "object" && "type" in data && "value" in data && (rivet.isScalarDataType(data.type) || rivet.isArrayDataType(data.type) || rivet.isFunctionDataType(data.type));
-  };
-  const isObjectDataValue = (data) => {
-    return typeof data == "object" && data?.type == "object" && typeof data?.value == "object";
-  };
-  const validateInputItem = (item, graph, missingKeys, notDataValue) => {
-    let itemKeys = Object.keys(item);
-    if (isObjectDataValue(item)) {
-      itemKeys = Object.keys(item.value);
-    }
-    let itemValues = Object.values(item);
-    if (isObjectDataValue(item)) {
-      console.log("iterator", "is datavalue", { item });
-      itemValues = Object.values(item.value);
-    }
-    console.log("iterator", "validateInputItem", { itemKeys });
-    const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
-    const expectedKeys = graphInputNodes.map((m) => {
-      const id = m.data["id"];
-      return id ?? null;
-    }).filter((f) => f != null);
-    if (expectedKeys.some((s) => !itemKeys.includes(s))) {
-      expectedKeys.filter((key) => !itemKeys.includes(key)).forEach((key) => missingKeys.add(key));
-      return true;
-    }
-    const invalidData = itemValues.some((s) => {
-      console.log("iterator", "validateInputItem", { s });
-      const isDataType = isAnyDataValue(s);
-      if (!isDataType) {
-        notDataValue.add(s);
-        return true;
-      }
-    });
-    return invalidData;
-  };
+  const nodePluginCache = /* @__PURE__ */ new Map();
   const IteratorPluginNodeImpl = {
     // This should create a new instance of your node type from scratch.
     create() {
@@ -775,7 +747,9 @@ function iteratorPluginNode(rivet) {
         data: {
           iteratorOutputs: [],
           chunkSize: 1,
-          useChunkSizeToggle: false
+          useChunkSizeToggle: false,
+          hasCache: false,
+          nodeId: id
         },
         // This is the default title of your node.
         title: "Iterator Plugin Node",
@@ -805,7 +779,7 @@ function iteratorPluginNode(rivet) {
         id: iteratorConnectionIds.iteratorInputs,
         dataType: "object[]",
         title: "Iterator Inputs Array",
-        description: "The array to iterate over.  Either `object[]` or `ObjectDataValue[]`.  Each array item should be a `object` with properties that are `DataValue`.  This is because call graph requires an inputs ObjectDataValue with properties that match the graph's input ports. ",
+        description: iteratorInputOutputsHelperMessage,
         required: true
       });
       if (data.useChunkSizeToggle) {
@@ -835,7 +809,7 @@ function iteratorPluginNode(rivet) {
       return {
         contextMenuTitle: "Iterator Plugin",
         group: "Logic",
-        infoBoxBody: "This is an iterator plugin node.  This node will map over an array and process each item with the graph provided.",
+        infoBoxBody: "This is an iterator plugin node.  This node will map over an array and process each item with the graph provided. \n \n" + iteratorInputOutputsHelperMessage,
         infoBoxTitle: "Iterator Plugin Node",
         infoBoxImageUri: iterator_plugin_info_default
       };
@@ -850,6 +824,12 @@ function iteratorPluginNode(rivet) {
           defaultValue: 1,
           helperMessage: "The number of items to process at the same time.  This will help process arrays quickly while not overloading the system.  Recommended to keep this below 10 for subgraphs that make network calls or stream model responses.",
           useInputToggleDataKey: "useChunkSizeToggle"
+        },
+        {
+          type: "toggle",
+          dataKey: "hasCache",
+          label: "Cache Execution",
+          helperMessage: "If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs."
         }
       ];
     },
@@ -865,11 +845,18 @@ function iteratorPluginNode(rivet) {
     // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
     // must also correspond to the output definitions you defined in the getOutputDefinitions function.
     async process(data, inputData, context) {
+      const outputs = {};
       let abortIteration = false;
       context.signal.addEventListener("abort", () => {
         abortIteration = true;
       });
-      const outputs = {};
+      const nodeId = data.nodeId;
+      const hasCache = data.hasCache;
+      const cacheObj = nodePluginCache.get(nodeId) ?? {
+        cache: /* @__PURE__ */ new Map(),
+        expiryTimestamp: Date.now() + 1 * 60 * 60
+        /** 1 hour */
+      };
       const graphRef = rivet.coerceType(
         inputData[iteratorConnectionIds.graph],
         "graph-reference"
@@ -916,9 +903,16 @@ function iteratorPluginNode(rivet) {
           type: "control-flow-excluded",
           value: void 0
         };
+        let errorMessage = "Input validation error::";
+        if (missingKeys.size > 0) {
+          errorMessage += " Missing keys required for graph: " + Array.from(missingKeys).map((key) => `'${key}'`).join("; ");
+        }
+        if (notDataValue.size > 0) {
+          errorMessage += " Invalid Inputs, make sure each input item is a ObjectDataValue: " + Array.from(notDataValue).map((value) => `'${JSON.stringify(value)}'`).join("; ");
+        }
         outputs[iteratorConnectionIds.iteratorError] = {
           type: "string",
-          value: "Input validation error: The input array must have objects with keys that match the graph's input ports.  This should be an array of objects. Each object should be a DataValue. Missing keys:: " + Array.from(missingKeys).map((key) => `'${key}'`).join("; ") + "; Invalid DataValues:: " + Array.from(notDataValue).map((value) => `'${JSON.stringify(value)}'`).join("; ")
+          value: errorMessage
         };
         return outputs;
       }
@@ -941,12 +935,25 @@ function iteratorPluginNode(rivet) {
                 [callGraphConnectionIds.graph]: inputData[iteratorConnectionIds.graph],
                 [callGraphConnectionIds.inputs]: itemDataValue
               };
-              console.log("iterator itemdatavalue", { itemDataValue });
-              const itemIteratorOutputs = await impl.process(
-                iteratorInputData,
-                context
-              );
-              itemOutput = itemIteratorOutputs;
+              console.log("iterator", "hasCache", { hasCache });
+              if (hasCache) {
+                const cacheKey = await sha256(JSON.stringify(iteratorInputData));
+                const cachedOutput = cacheObj.cache.get(cacheKey);
+                if (cachedOutput) {
+                  return cachedOutput;
+                }
+              } else {
+                console.log("iterator itemdatavalue", { itemDataValue });
+                const itemIteratorOutputs = await impl.process(
+                  iteratorInputData,
+                  context
+                );
+                itemOutput = itemIteratorOutputs;
+                if (hasCache) {
+                  const cacheKey = await sha256(JSON.stringify(iteratorInputData));
+                  cacheObj.cache.set(cacheKey, itemOutput);
+                }
+              }
             } else {
               itemOutput[callGraphConnectionIds.outputs] = {
                 type: "control-flow-excluded",
@@ -960,7 +967,7 @@ function iteratorPluginNode(rivet) {
             };
             itemOutput[callGraphConnectionIds.error] = {
               type: "string",
-              value: `Error running graph ${graphRef.graphName}.  ItemIndex: ${index}::  Inputs: ${item}  Message: ${rivet.getError(err).message}`
+              value: `Error running graph ${graphRef.graphName}.  ItemIndex: ${index}::  Inputs: ${JSON.stringify(item)}  Message: ${rivet.getError(err).message}`
             };
             abortIteration = true;
           }
@@ -969,6 +976,9 @@ function iteratorPluginNode(rivet) {
       });
       const iteratorOutputs = await Promise.all(addToQueue);
       await queue.onIdle();
+      if (hasCache) {
+        void cleanExpiredCache();
+      }
       const errorInIteratorOutputs = iteratorOutputs.some(
         (f) => f[callGraphConnectionIds.outputs]?.type == "control-flow-excluded"
       );
@@ -989,6 +999,50 @@ function iteratorPluginNode(rivet) {
       };
       return outputs;
     }
+  };
+  const isAnyDataValue = (data) => {
+    return typeof data == "object" && "type" in data && "value" in data && (rivet.isScalarDataType(data.type) || rivet.isArrayDataType(data.type) || rivet.isFunctionDataType(data.type));
+  };
+  const isObjectDataValue = (data) => {
+    return typeof data == "object" && data?.type == "object" && typeof data?.value == "object";
+  };
+  const validateInputItem = (item, graph, missingKeys, notDataValue) => {
+    let itemKeys = Object.keys(item);
+    if (isObjectDataValue(item)) {
+      itemKeys = Object.keys(item.value);
+    }
+    let itemValues = Object.values(item);
+    if (isObjectDataValue(item)) {
+      console.log("iterator", "is datavalue", { item });
+      itemValues = Object.values(item.value);
+    }
+    console.log("iterator", "validateInputItem", { itemKeys });
+    const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
+    const expectedKeys = graphInputNodes.map((m) => {
+      const id = m.data["id"];
+      return id ?? null;
+    }).filter((f) => f != null);
+    if (expectedKeys.some((s) => !itemKeys.includes(s))) {
+      expectedKeys.filter((key) => !itemKeys.includes(key)).forEach((key) => missingKeys.add(key));
+      return true;
+    }
+    const invalidData = itemValues.some((s) => {
+      console.log("iterator", "validateInputItem", { s });
+      const isDataType = isAnyDataValue(s);
+      if (!isDataType) {
+        notDataValue.add(s);
+        return true;
+      }
+    });
+    return invalidData;
+  };
+  const cleanExpiredCache = async () => {
+    const now = Date.now();
+    nodePluginCache.forEach((value, key) => {
+      if (value.expiryTimestamp < now) {
+        nodePluginCache.delete(key);
+      }
+    });
   };
   const iteratorPluginNode2 = rivet.pluginNodeDefinition(
     IteratorPluginNodeImpl,
