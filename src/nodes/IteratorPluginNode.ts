@@ -366,8 +366,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         return outputs;
       }
 
-      console.log("iterator", "inputData", { inputData });
-
+      // console.log("iterator", "inputData", { inputData });
       const graph = context.project.graphs[graphRef.graphId];
 
       // validate input items to make sure they have all  keys of the  graph's input ports
@@ -376,7 +375,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       const invalidInputs = iteratorInputs.some((s) => {
         return validateInputItem(s, graph, missingKeys, notDataValue);
       });
-      console.log("iterator", "invalidInputs", { invalidInputs });
+      // console.log("iterator", "invalidInputs", { invalidInputs });
       if (invalidInputs) {
         outputs[iteratorConnectionIds.iteratorOutputs] = {
           type: "control-flow-excluded",
@@ -437,12 +436,12 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
                 );
                 const cachedOutput = cacheObj.cache.get(cacheKey);
                 if (cachedOutput) {
-                  console.log("iterator", "get cache", {
-                    cacheKey,
-                    itemDataValue,
-                    cachedOutput,
-                    iteratorPluginCacheStorage,
-                  });
+                  // console.log("iterator", "get cache", {
+                  //   cacheKey,
+                  //   itemDataValue,
+                  //   cachedOutput,
+                  //   iteratorPluginCacheStorage,
+                  // });
                   return cachedOutput;
                 }
               }
@@ -452,12 +451,12 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
                 const cacheKey = await sha256(
                   JSON.stringify(iteratorInputData)
                 );
-                console.log("iterator", "set cache", {
-                  cacheKey,
-                  itemOutput,
-                  itemDataValue,
-                  iteratorPluginCacheStorage,
-                });
+                // console.log("iterator", "set cache", {
+                //   cacheKey,
+                //   itemOutput,
+                //   itemDataValue,
+                //   iteratorPluginCacheStorage,
+                // });
                 cacheObj.cache.set(cacheKey, itemOutput);
               }
             } else {

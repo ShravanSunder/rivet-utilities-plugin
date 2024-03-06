@@ -927,14 +927,12 @@ function iteratorPluginNode(rivet) {
         };
         return outputs;
       }
-      console.log("iterator", "inputData", { inputData });
       const graph = context.project.graphs[graphRef.graphId];
       const missingKeys = /* @__PURE__ */ new Set();
       const notDataValue = /* @__PURE__ */ new Set();
       const invalidInputs = iteratorInputs.some((s) => {
         return validateInputItem(s, graph, missingKeys, notDataValue);
       });
-      console.log("iterator", "invalidInputs", { invalidInputs });
       if (invalidInputs) {
         outputs[iteratorConnectionIds.iteratorOutputs] = {
           type: "control-flow-excluded",
@@ -978,12 +976,6 @@ function iteratorPluginNode(rivet) {
                 );
                 const cachedOutput = cacheObj.cache.get(cacheKey);
                 if (cachedOutput) {
-                  console.log("iterator", "get cache", {
-                    cacheKey,
-                    itemDataValue,
-                    cachedOutput,
-                    iteratorPluginCacheStorage
-                  });
                   return cachedOutput;
                 }
               }
@@ -992,12 +984,6 @@ function iteratorPluginNode(rivet) {
                 const cacheKey = await sha256(
                   JSON.stringify(iteratorInputData)
                 );
-                console.log("iterator", "set cache", {
-                  cacheKey,
-                  itemOutput,
-                  itemDataValue,
-                  iteratorPluginCacheStorage
-                });
                 cacheObj.cache.set(cacheKey, itemOutput);
               }
             } else {
