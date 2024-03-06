@@ -90,7 +90,6 @@ export type IteratorPluginNodeData = {
   chunkSize: number;
   hasCache: boolean;
   useChunkSizeToggle: boolean;
-  nodeId: NodeId;
 };
 
 const callGraphConnectionIds = {
@@ -112,8 +111,11 @@ const iteratorConnectionIds = {
 // Make sure you export functions that take in the Rivet library, so that you do not
 // import the entire Rivet core library in your plugin.
 export function iteratorPluginNode(rivet: typeof Rivet) {
+  /**
+   * The id is the graphId associated with the call graph
+   */
   const iteratorPluginCacheStorage: Map<
-    NodeId,
+    string,
     {
       /**
        * Compressed Objects are stored
@@ -149,7 +151,6 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
           chunkSize: 1,
           useChunkSizeToggle: false,
           hasCache: false,
-          nodeId: id,
         } satisfies IteratorPluginNodeData,
 
         // This is the default title of your node.
@@ -328,15 +329,15 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       const graphSnapshot = await sha256(
         JSON.stringify(graph.nodes.map((m) => m.data))
       );
-      const nodeId = data.nodeId;
-      console.log("iterator", {data, nodeId, iteratorPluginCacheStorage});
-      const hasCache = data.hasCache && nodeId != null;
+      const cacheId = graphRef.graphId as string;
+      console.log("iterator", {data, cacheId, iteratorPluginCacheStorage});
+      const hasCache = data.hasCache && cacheId != null;
       /**
        * cache storage
        */
-      const cacheStorage = iteratorPluginCacheStorage.get(nodeId) ?? {
+      const cacheStorage = iteratorPluginCacheStorage.get(cacheId) ?? {
         cache: new Map<string, string>(),
-        expiryTimestamp: Date.now() + 1 * 60 * 60 /** 1 hour */,
+        expiryTimestamp: Date.now() + 1 * 60 * 60 * 1000 /** 1 hour */,
         graphSnapshot,
       };
       invalideCacheIfChanges(cacheStorage, graphSnapshot);
@@ -461,10 +462,10 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
 
       if (hasCache) {
         console.log("iterator", "set cacheStorage", {
-          nodeId,
+          cacheId,
           cacheStorage,
         })
-        iteratorPluginCacheStorage.set(nodeId, cacheStorage);
+        iteratorPluginCacheStorage.set(cacheId, cacheStorage);
         void cleanExpiredCache();
       }
 

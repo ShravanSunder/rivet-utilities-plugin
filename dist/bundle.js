@@ -1244,8 +1244,7 @@ function iteratorPluginNode(rivet) {
           iteratorOutputs: [],
           chunkSize: 1,
           useChunkSizeToggle: false,
-          hasCache: false,
-          nodeId: id
+          hasCache: false
         },
         // This is the default title of your node.
         title: "Iterator Plugin Node",
@@ -1379,12 +1378,12 @@ function iteratorPluginNode(rivet) {
       const graphSnapshot = await sha256(
         JSON.stringify(graph.nodes.map((m) => m.data))
       );
-      const nodeId = data.nodeId;
-      console.log("iterator", { data, nodeId, iteratorPluginCacheStorage });
-      const hasCache = data.hasCache && nodeId != null;
-      const cacheStorage = iteratorPluginCacheStorage.get(nodeId) ?? {
+      const cacheId = graphRef.graphId;
+      console.log("iterator", { data, cacheId, iteratorPluginCacheStorage });
+      const hasCache = data.hasCache && cacheId != null;
+      const cacheStorage = iteratorPluginCacheStorage.get(cacheId) ?? {
         cache: /* @__PURE__ */ new Map(),
-        expiryTimestamp: Date.now() + 1 * 60 * 60,
+        expiryTimestamp: Date.now() + 1 * 60 * 60 * 1e3,
         graphSnapshot
       };
       invalideCacheIfChanges(cacheStorage, graphSnapshot);
@@ -1486,10 +1485,10 @@ function iteratorPluginNode(rivet) {
       await queue.onIdle();
       if (hasCache) {
         console.log("iterator", "set cacheStorage", {
-          nodeId,
+          cacheId,
           cacheStorage
         });
-        iteratorPluginCacheStorage.set(nodeId, cacheStorage);
+        iteratorPluginCacheStorage.set(cacheId, cacheStorage);
         void cleanExpiredCache();
       }
       const errorInIteratorOutputs = iteratorOutputs.some(
