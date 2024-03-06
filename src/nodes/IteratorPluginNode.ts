@@ -28,6 +28,8 @@ import type {
 } from "@ironclad/rivet-core";
 import PQueue from "p-queue";
 
+import * as LZString from "lz-string";
+
 import nodeImage from "../../public/iterator plugin info.png";
 
 // This defines your new type of node.
@@ -45,6 +47,39 @@ const sha256 = async (input: string) => {
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
   return hexHash;
+};
+
+/**
+ * Function to compress an object
+ * @param obj
+ * @returns
+ */
+const compressObject = <T>(obj: T): string => {
+  try {
+    const jsonString = JSON.stringify(obj);
+    return LZString.compressToUTF16(jsonString);
+  } catch (error) {
+    console.error("Error compressing object:", error);
+    throw error;
+  }
+};
+
+/**
+ * Function to decompress an object
+ * @param compressedData
+ * @returns
+ */
+const decompressObject = <T>(compressedData: string): T => {
+  try {
+    const decompressed = LZString.decompressFromUTF16(compressedData);
+    if (!decompressed) {
+      throw new Error("Decompression returned null or undefined.");
+    }
+    return JSON.parse(decompressed) as T;
+  } catch (error) {
+    console.error("Error decompressing object:", error);
+    throw error;
+  }
 };
 
 // This defines the data that your new node will store.
@@ -79,97 +114,22 @@ const iteratorConnectionIds = {
 export function iteratorPluginNode(rivet: typeof Rivet) {
   const iteratorPluginCacheStorage: Map<
     NodeId,
-    { cache: Map<string, Outputs>; expiryTimestamp: number }
-    > = new Map();
-  
-  
+    {
+      /**
+       * Compressed Objects are stored
+       */
+      cache: Map<string, string>;
+      expiryTimestamp: number;
+      /**
+       * Create a graphSnapshot sowe can invalidate cache
+       */
+      graphSnapshot?: string;
+    }
+  > = new Map();
+
   const iteratorInputOutputsHelperMessage = rivet.dedent`Inputs must be an array of objects to iterate over.  Each object in the array should be a ObjectDataValue \`{type: 'object', value: <graph inputs>}\`; where <graph inputs> is of the format \`{type: 'object', value: {<graph input id>: <input value>}}\` The graph input id should match the graph's input ports.  The input value should be a DataValue. 
 
-  Ouputs will be an array of ObjectDataValue \`type: 'object', value: {<graph output id>: <output value>}\``
-
-  /**************
-   * Helper Functions
-   */
-  const isAnyDataValue = (data: any): data is { type: string; value: any } => {
-    return (
-      typeof data == "object" &&
-      "type" in data &&
-      "value" in data &&
-      (rivet.isScalarDataType(data.type) ||
-        rivet.isArrayDataType(data.type) ||
-        rivet.isFunctionDataType(data.type))
-    );
-  };
-  const isObjectDataValue = (data: any): data is ObjectDataValue => {
-    return (
-      typeof data == "object" &&
-      data?.type == "object" &&
-      typeof data?.value == "object"
-    );
-  };
-
-  const validateInputItem = (
-    item: Record<string, unknown>,
-    graph: NodeGraph,
-    missingKeys: Set<string>,
-    notDataValue: Set<string>
-  ) => {
-    let itemKeys = Object.keys(item);
-    if (isObjectDataValue(item)) {
-      itemKeys = Object.keys(item.value);
-    }
-
-    let itemValues = Object.values(item);
-    if (isObjectDataValue(item)) {
-      itemValues = Object.values(item.value);
-    }
-
-    /**
-     * expected keys are the ids of the graph's input nodes, if they exist
-     */
-
-    const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
-    const expectedKeys = graphInputNodes
-      .map((m) => {
-        const id = (m.data as Record<string, unknown>)["id"] as string;
-        return id ?? null;
-      })
-      .filter((f) => f != null);
-
-    /**
-     * if expected keys aren't in the item keys, then the item is invalid
-     */
-    if (expectedKeys.some((s) => !itemKeys.includes(s))) {
-      expectedKeys
-        .filter((key) => !itemKeys.includes(key))
-        .forEach((key) => missingKeys.add(key));
-      return true;
-    }
-
-    const invalidData = itemValues.some((s: any) => {
-      /**
-       * if the item values aren't DataValues, then the item is invalid
-       */
-      const isDataType = isAnyDataValue(s);
-      if (!isDataType) {
-        /**
-         * save the key that isn't a DataValue
-         */
-        notDataValue.add(s);
-        return true;
-      }
-    });
-    return invalidData;
-  };
-
-  const cleanExpiredCache = async (): Promise<void> => {
-    const now = Date.now();
-    iteratorPluginCacheStorage.forEach((value, key) => {
-      if (value.expiryTimestamp < now) {
-        iteratorPluginCacheStorage.delete(key);
-      }
-    });
-  };
+  Ouputs will be an array of ObjectDataValue \`type: 'object', value: {<graph output id>: <output value>}\``;
 
   /**************
    * Plugin Code
@@ -190,7 +150,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
           useChunkSizeToggle: false,
           hasCache: false,
           nodeId: id,
-        },
+        } satisfies IteratorPluginNodeData,
 
         // This is the default title of your node.
         title: "Iterator Plugin Node",
@@ -270,8 +230,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       return {
         contextMenuTitle: "Iterator Plugin",
         group: "Logic",
-        infoBoxBody:
-          rivet.dedent`This is an iterator plugin node.  This node will map over an array and process each item with the graph provided. 
+        infoBoxBody: rivet.dedent`This is an iterator plugin node.  This node will map over an array and process each item with the graph provided. 
           
           ${iteratorInputOutputsHelperMessage}`,
         infoBoxTitle: "Iterator Plugin Node",
@@ -297,8 +256,7 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
           type: "toggle",
           dataKey: "hasCache",
           label: "Cache Execution",
-          helperMessage:
-            rivet.dedent`If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs.`,
+          helperMessage: rivet.dedent`If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs.`,
         },
       ];
     },
@@ -330,12 +288,6 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       });
 
       // get the inputs
-      const nodeId = data.nodeId;
-      const hasCache = data.hasCache;
-      const cacheObj = iteratorPluginCacheStorage.get(nodeId) ?? {
-        cache: new Map<string, Outputs>(),
-        expiryTimestamp: Date.now() + 1 * 60 * 60 /** 1 hour */,
-      };
       const graphRef = rivet.coerceType(
         inputData[iteratorConnectionIds.graph],
         "graph-reference"
@@ -351,7 +303,9 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         ) ?? data.chunkSize;
       chunkSize = chunkSize > 0 ? chunkSize : 1;
 
-      // validate input array, they should all be objects
+      /**
+       * validate input array, they should all be objects
+       */
       const allItemsAreObjects = iteratorInputs.some(
         (s) => typeof s != "object"
       );
@@ -362,14 +316,30 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         };
         outputs[iteratorConnectionIds.iteratorError] = {
           type: "string",
-          value:
-            rivet.dedent`Input array must be an array of objects.  Each object needs to be a DataValue.  A graph needs an object with keys that match the graph's input ports`,
+          value: rivet.dedent`Input array must be an array of objects.  Each object needs to be a DataValue.  A graph needs an object with keys that match the graph's input ports`,
         };
         return outputs;
       }
 
-      // console.log("iterator", "inputData", { inputData });
+      /**
+       * get the graph
+       */
       const graph = context.project.graphs[graphRef.graphId];
+      const graphSnapshot = await sha256(
+        JSON.stringify(graph.nodes.map((m) => m.data))
+      );
+      const nodeId = data.nodeId;
+      console.log("iterator", {data, nodeId, iteratorPluginCacheStorage});
+      const hasCache = data.hasCache && nodeId != null;
+      /**
+       * cache storage
+       */
+      const cacheStorage = iteratorPluginCacheStorage.get(nodeId) ?? {
+        cache: new Map<string, string>(),
+        expiryTimestamp: Date.now() + 1 * 60 * 60 /** 1 hour */,
+        graphSnapshot,
+      };
+      invalideCacheIfChanges(cacheStorage, graphSnapshot);
 
       // validate input items to make sure they have all  keys of the  graph's input ports
       const missingKeys = new Set<string>();
@@ -385,15 +355,13 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
         };
         let errorMessage = "Input validation error::";
         if (missingKeys.size > 0) {
-          errorMessage +=
-            `Missing keys required for graph: 
+          errorMessage += `Missing keys required for graph: 
             ${Array.from(missingKeys)
               .map((key) => key)
               .join("; ")}`;
         }
         if (notDataValue.size > 0) {
-          errorMessage +=
-            rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue: 
+          errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue: 
             ${Array.from(notDataValue)
               .map((value) => JSON.stringify(value))
               .join("; ")}`;
@@ -436,15 +404,15 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
                 const cacheKey = await sha256(
                   JSON.stringify(iteratorInputData)
                 );
-                const cachedOutput = cacheObj.cache.get(cacheKey);
-                if (cachedOutput) {
-                  // console.log("iterator", "get cache", {
-                  //   cacheKey,
-                  //   itemDataValue,
-                  //   cachedOutput,
-                  //   iteratorPluginCacheStorage,
-                  // });
-                  return cachedOutput;
+                const cachedOutputCompressed = cacheStorage.cache.get(cacheKey);
+                if (cachedOutputCompressed) {
+                  console.log("iterator", "get cache", {
+                    cacheKey,
+                    itemDataValue,
+                    cachedOutputCompressed,
+                    iteratorPluginCacheStorage,
+                  });
+                  return decompressObject<Outputs>(cachedOutputCompressed);
                 }
               }
               itemOutput = await impl.process(iteratorInputData, context);
@@ -453,13 +421,13 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
                 const cacheKey = await sha256(
                   JSON.stringify(iteratorInputData)
                 );
-                // console.log("iterator", "set cache", {
-                //   cacheKey,
-                //   itemOutput,
-                //   itemDataValue,
-                //   iteratorPluginCacheStorage,
-                // });
-                cacheObj.cache.set(cacheKey, itemOutput);
+                console.log("iterator", "set cache", {
+                  cacheKey,
+                  itemOutput,
+                  itemDataValue,
+                  iteratorPluginCacheStorage,
+                });
+                cacheStorage.cache.set(cacheKey, compressObject(itemOutput));
               }
             } else {
               itemOutput[callGraphConnectionIds.outputs] = {
@@ -492,7 +460,11 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       await queue.onIdle();
 
       if (hasCache) {
-        iteratorPluginCacheStorage.set(nodeId, cacheObj);
+        console.log("iterator", "set cacheStorage", {
+          nodeId,
+          cacheStorage,
+        })
+        iteratorPluginCacheStorage.set(nodeId, cacheStorage);
         void cleanExpiredCache();
       }
 
@@ -514,7 +486,8 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
                 "control-flow-excluded"
             )
             .map(
-              (m, i) => `ItemIndex: ${i}:: ${m[callGraphConnectionIds.error]?.value}`
+              (m, i) =>
+                `ItemIndex: ${i}:: ${m[callGraphConnectionIds.error]?.value}`
             )
             .join("; "),
         };
@@ -528,6 +501,125 @@ export function iteratorPluginNode(rivet: typeof Rivet) {
       };
       return outputs;
     },
+  };
+
+  /******************************************
+   * Helper Functions
+   */
+  /**
+   * Checks if the data is a DataValue
+   * @param data 
+   * @returns 
+   */
+  const isAnyDataValue = (data: any): data is { type: string; value: any } => {
+    return (
+      typeof data == "object" &&
+      "type" in data &&
+      "value" in data &&
+      (rivet.isScalarDataType(data.type) ||
+        rivet.isArrayDataType(data.type) ||
+        rivet.isFunctionDataType(data.type))
+    );
+  };
+  /**
+   * Checks if the data is a ObjectDataValue
+   * @param data 
+   * @returns 
+   */
+  const isObjectDataValue = (data: any): data is ObjectDataValue => {
+    return (
+      typeof data == "object" &&
+      data?.type == "object" &&
+      typeof data?.value == "object"
+    );
+  };
+
+  const invalideCacheIfChanges = (
+    cacheStorage: {
+      cache: Map<string, string>;
+      expiryTimestamp: number;
+      /**
+       * Create a graphSnapshot sowe can invalidate cache
+       */
+      graphSnapshot?: string | undefined;
+    },
+    graphSnapshot: string
+  ) => {
+    if (cacheStorage.graphSnapshot != graphSnapshot) {
+      console.log("iterator", "invalidate cache", {
+        cacheStorage,
+        graphSnapshot,
+      });
+      cacheStorage.cache.clear();
+      cacheStorage.graphSnapshot = graphSnapshot;
+    }
+  };
+
+  const validateInputItem = (
+    item: Record<string, unknown>,
+    graph: NodeGraph,
+    missingKeys: Set<string>,
+    notDataValue: Set<string>
+  ) => {
+    let itemKeys = Object.keys(item);
+    if (isObjectDataValue(item)) {
+      itemKeys = Object.keys(item.value);
+    }
+
+    let itemValues = Object.values(item);
+    if (isObjectDataValue(item)) {
+      itemValues = Object.values(item.value);
+    }
+
+    /**
+     * expected keys are the ids of the graph's input nodes, if they exist
+     */
+
+    const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
+    const expectedKeys = graphInputNodes
+      .map((m) => {
+        const id = (m.data as Record<string, unknown>)["id"] as string;
+        return id ?? null;
+      })
+      .filter((f) => f != null);
+
+    /**
+     * if expected keys aren't in the item keys, then the item is invalid
+     */
+    if (expectedKeys.some((s) => !itemKeys.includes(s))) {
+      expectedKeys
+        .filter((key) => !itemKeys.includes(key))
+        .forEach((key) => missingKeys.add(key));
+      return true;
+    }
+
+    const invalidData = itemValues.some((s: any) => {
+      /**
+       * if the item values aren't DataValues, then the item is invalid
+       */
+      const isDataType = isAnyDataValue(s);
+      if (!isDataType) {
+        /**
+         * save the key that isn't a DataValue
+         */
+        notDataValue.add(s);
+        return true;
+      }
+    });
+    return invalidData;
+  };
+
+  const cleanExpiredCache = async (): Promise<void> => {
+    const now = Date.now();
+    iteratorPluginCacheStorage.forEach((value, key) => {
+      if (value.expiryTimestamp < now) {
+        console.log("iterator", "delete cache", {
+          key,
+          value,
+        });
+        iteratorPluginCacheStorage.delete(key);
+      }
+    });
   };
 
   // Once a node is defined, you must pass it to rivet.pluginNodeDefinition, which will return a valid

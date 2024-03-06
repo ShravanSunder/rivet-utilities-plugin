@@ -241,6 +241,473 @@ var require_eventemitter3 = __commonJS({
   }
 });
 
+// node_modules/.pnpm/lz-string@1.5.0/node_modules/lz-string/libs/lz-string.js
+var require_lz_string = __commonJS({
+  "node_modules/.pnpm/lz-string@1.5.0/node_modules/lz-string/libs/lz-string.js"(exports, module) {
+    var LZString2 = function() {
+      var f = String.fromCharCode;
+      var keyStrBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+      var keyStrUriSafe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$";
+      var baseReverseDic = {};
+      function getBaseValue(alphabet, character) {
+        if (!baseReverseDic[alphabet]) {
+          baseReverseDic[alphabet] = {};
+          for (var i = 0; i < alphabet.length; i++) {
+            baseReverseDic[alphabet][alphabet.charAt(i)] = i;
+          }
+        }
+        return baseReverseDic[alphabet][character];
+      }
+      var LZString3 = {
+        compressToBase64: function(input) {
+          if (input == null)
+            return "";
+          var res = LZString3._compress(input, 6, function(a) {
+            return keyStrBase64.charAt(a);
+          });
+          switch (res.length % 4) {
+            default:
+            case 0:
+              return res;
+            case 1:
+              return res + "===";
+            case 2:
+              return res + "==";
+            case 3:
+              return res + "=";
+          }
+        },
+        decompressFromBase64: function(input) {
+          if (input == null)
+            return "";
+          if (input == "")
+            return null;
+          return LZString3._decompress(input.length, 32, function(index) {
+            return getBaseValue(keyStrBase64, input.charAt(index));
+          });
+        },
+        compressToUTF16: function(input) {
+          if (input == null)
+            return "";
+          return LZString3._compress(input, 15, function(a) {
+            return f(a + 32);
+          }) + " ";
+        },
+        decompressFromUTF16: function(compressed) {
+          if (compressed == null)
+            return "";
+          if (compressed == "")
+            return null;
+          return LZString3._decompress(compressed.length, 16384, function(index) {
+            return compressed.charCodeAt(index) - 32;
+          });
+        },
+        //compress into uint8array (UCS-2 big endian format)
+        compressToUint8Array: function(uncompressed) {
+          var compressed = LZString3.compress(uncompressed);
+          var buf = new Uint8Array(compressed.length * 2);
+          for (var i = 0, TotalLen = compressed.length; i < TotalLen; i++) {
+            var current_value = compressed.charCodeAt(i);
+            buf[i * 2] = current_value >>> 8;
+            buf[i * 2 + 1] = current_value % 256;
+          }
+          return buf;
+        },
+        //decompress from uint8array (UCS-2 big endian format)
+        decompressFromUint8Array: function(compressed) {
+          if (compressed === null || compressed === void 0) {
+            return LZString3.decompress(compressed);
+          } else {
+            var buf = new Array(compressed.length / 2);
+            for (var i = 0, TotalLen = buf.length; i < TotalLen; i++) {
+              buf[i] = compressed[i * 2] * 256 + compressed[i * 2 + 1];
+            }
+            var result = [];
+            buf.forEach(function(c) {
+              result.push(f(c));
+            });
+            return LZString3.decompress(result.join(""));
+          }
+        },
+        //compress into a string that is already URI encoded
+        compressToEncodedURIComponent: function(input) {
+          if (input == null)
+            return "";
+          return LZString3._compress(input, 6, function(a) {
+            return keyStrUriSafe.charAt(a);
+          });
+        },
+        //decompress from an output of compressToEncodedURIComponent
+        decompressFromEncodedURIComponent: function(input) {
+          if (input == null)
+            return "";
+          if (input == "")
+            return null;
+          input = input.replace(/ /g, "+");
+          return LZString3._decompress(input.length, 32, function(index) {
+            return getBaseValue(keyStrUriSafe, input.charAt(index));
+          });
+        },
+        compress: function(uncompressed) {
+          return LZString3._compress(uncompressed, 16, function(a) {
+            return f(a);
+          });
+        },
+        _compress: function(uncompressed, bitsPerChar, getCharFromInt) {
+          if (uncompressed == null)
+            return "";
+          var i, value, context_dictionary = {}, context_dictionaryToCreate = {}, context_c = "", context_wc = "", context_w = "", context_enlargeIn = 2, context_dictSize = 3, context_numBits = 2, context_data = [], context_data_val = 0, context_data_position = 0, ii;
+          for (ii = 0; ii < uncompressed.length; ii += 1) {
+            context_c = uncompressed.charAt(ii);
+            if (!Object.prototype.hasOwnProperty.call(context_dictionary, context_c)) {
+              context_dictionary[context_c] = context_dictSize++;
+              context_dictionaryToCreate[context_c] = true;
+            }
+            context_wc = context_w + context_c;
+            if (Object.prototype.hasOwnProperty.call(context_dictionary, context_wc)) {
+              context_w = context_wc;
+            } else {
+              if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
+                if (context_w.charCodeAt(0) < 256) {
+                  for (i = 0; i < context_numBits; i++) {
+                    context_data_val = context_data_val << 1;
+                    if (context_data_position == bitsPerChar - 1) {
+                      context_data_position = 0;
+                      context_data.push(getCharFromInt(context_data_val));
+                      context_data_val = 0;
+                    } else {
+                      context_data_position++;
+                    }
+                  }
+                  value = context_w.charCodeAt(0);
+                  for (i = 0; i < 8; i++) {
+                    context_data_val = context_data_val << 1 | value & 1;
+                    if (context_data_position == bitsPerChar - 1) {
+                      context_data_position = 0;
+                      context_data.push(getCharFromInt(context_data_val));
+                      context_data_val = 0;
+                    } else {
+                      context_data_position++;
+                    }
+                    value = value >> 1;
+                  }
+                } else {
+                  value = 1;
+                  for (i = 0; i < context_numBits; i++) {
+                    context_data_val = context_data_val << 1 | value;
+                    if (context_data_position == bitsPerChar - 1) {
+                      context_data_position = 0;
+                      context_data.push(getCharFromInt(context_data_val));
+                      context_data_val = 0;
+                    } else {
+                      context_data_position++;
+                    }
+                    value = 0;
+                  }
+                  value = context_w.charCodeAt(0);
+                  for (i = 0; i < 16; i++) {
+                    context_data_val = context_data_val << 1 | value & 1;
+                    if (context_data_position == bitsPerChar - 1) {
+                      context_data_position = 0;
+                      context_data.push(getCharFromInt(context_data_val));
+                      context_data_val = 0;
+                    } else {
+                      context_data_position++;
+                    }
+                    value = value >> 1;
+                  }
+                }
+                context_enlargeIn--;
+                if (context_enlargeIn == 0) {
+                  context_enlargeIn = Math.pow(2, context_numBits);
+                  context_numBits++;
+                }
+                delete context_dictionaryToCreate[context_w];
+              } else {
+                value = context_dictionary[context_w];
+                for (i = 0; i < context_numBits; i++) {
+                  context_data_val = context_data_val << 1 | value & 1;
+                  if (context_data_position == bitsPerChar - 1) {
+                    context_data_position = 0;
+                    context_data.push(getCharFromInt(context_data_val));
+                    context_data_val = 0;
+                  } else {
+                    context_data_position++;
+                  }
+                  value = value >> 1;
+                }
+              }
+              context_enlargeIn--;
+              if (context_enlargeIn == 0) {
+                context_enlargeIn = Math.pow(2, context_numBits);
+                context_numBits++;
+              }
+              context_dictionary[context_wc] = context_dictSize++;
+              context_w = String(context_c);
+            }
+          }
+          if (context_w !== "") {
+            if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
+              if (context_w.charCodeAt(0) < 256) {
+                for (i = 0; i < context_numBits; i++) {
+                  context_data_val = context_data_val << 1;
+                  if (context_data_position == bitsPerChar - 1) {
+                    context_data_position = 0;
+                    context_data.push(getCharFromInt(context_data_val));
+                    context_data_val = 0;
+                  } else {
+                    context_data_position++;
+                  }
+                }
+                value = context_w.charCodeAt(0);
+                for (i = 0; i < 8; i++) {
+                  context_data_val = context_data_val << 1 | value & 1;
+                  if (context_data_position == bitsPerChar - 1) {
+                    context_data_position = 0;
+                    context_data.push(getCharFromInt(context_data_val));
+                    context_data_val = 0;
+                  } else {
+                    context_data_position++;
+                  }
+                  value = value >> 1;
+                }
+              } else {
+                value = 1;
+                for (i = 0; i < context_numBits; i++) {
+                  context_data_val = context_data_val << 1 | value;
+                  if (context_data_position == bitsPerChar - 1) {
+                    context_data_position = 0;
+                    context_data.push(getCharFromInt(context_data_val));
+                    context_data_val = 0;
+                  } else {
+                    context_data_position++;
+                  }
+                  value = 0;
+                }
+                value = context_w.charCodeAt(0);
+                for (i = 0; i < 16; i++) {
+                  context_data_val = context_data_val << 1 | value & 1;
+                  if (context_data_position == bitsPerChar - 1) {
+                    context_data_position = 0;
+                    context_data.push(getCharFromInt(context_data_val));
+                    context_data_val = 0;
+                  } else {
+                    context_data_position++;
+                  }
+                  value = value >> 1;
+                }
+              }
+              context_enlargeIn--;
+              if (context_enlargeIn == 0) {
+                context_enlargeIn = Math.pow(2, context_numBits);
+                context_numBits++;
+              }
+              delete context_dictionaryToCreate[context_w];
+            } else {
+              value = context_dictionary[context_w];
+              for (i = 0; i < context_numBits; i++) {
+                context_data_val = context_data_val << 1 | value & 1;
+                if (context_data_position == bitsPerChar - 1) {
+                  context_data_position = 0;
+                  context_data.push(getCharFromInt(context_data_val));
+                  context_data_val = 0;
+                } else {
+                  context_data_position++;
+                }
+                value = value >> 1;
+              }
+            }
+            context_enlargeIn--;
+            if (context_enlargeIn == 0) {
+              context_enlargeIn = Math.pow(2, context_numBits);
+              context_numBits++;
+            }
+          }
+          value = 2;
+          for (i = 0; i < context_numBits; i++) {
+            context_data_val = context_data_val << 1 | value & 1;
+            if (context_data_position == bitsPerChar - 1) {
+              context_data_position = 0;
+              context_data.push(getCharFromInt(context_data_val));
+              context_data_val = 0;
+            } else {
+              context_data_position++;
+            }
+            value = value >> 1;
+          }
+          while (true) {
+            context_data_val = context_data_val << 1;
+            if (context_data_position == bitsPerChar - 1) {
+              context_data.push(getCharFromInt(context_data_val));
+              break;
+            } else
+              context_data_position++;
+          }
+          return context_data.join("");
+        },
+        decompress: function(compressed) {
+          if (compressed == null)
+            return "";
+          if (compressed == "")
+            return null;
+          return LZString3._decompress(compressed.length, 32768, function(index) {
+            return compressed.charCodeAt(index);
+          });
+        },
+        _decompress: function(length, resetValue, getNextValue) {
+          var dictionary = [], next, enlargeIn = 4, dictSize = 4, numBits = 3, entry = "", result = [], i, w, bits, resb, maxpower, power, c, data = { val: getNextValue(0), position: resetValue, index: 1 };
+          for (i = 0; i < 3; i += 1) {
+            dictionary[i] = i;
+          }
+          bits = 0;
+          maxpower = Math.pow(2, 2);
+          power = 1;
+          while (power != maxpower) {
+            resb = data.val & data.position;
+            data.position >>= 1;
+            if (data.position == 0) {
+              data.position = resetValue;
+              data.val = getNextValue(data.index++);
+            }
+            bits |= (resb > 0 ? 1 : 0) * power;
+            power <<= 1;
+          }
+          switch (next = bits) {
+            case 0:
+              bits = 0;
+              maxpower = Math.pow(2, 8);
+              power = 1;
+              while (power != maxpower) {
+                resb = data.val & data.position;
+                data.position >>= 1;
+                if (data.position == 0) {
+                  data.position = resetValue;
+                  data.val = getNextValue(data.index++);
+                }
+                bits |= (resb > 0 ? 1 : 0) * power;
+                power <<= 1;
+              }
+              c = f(bits);
+              break;
+            case 1:
+              bits = 0;
+              maxpower = Math.pow(2, 16);
+              power = 1;
+              while (power != maxpower) {
+                resb = data.val & data.position;
+                data.position >>= 1;
+                if (data.position == 0) {
+                  data.position = resetValue;
+                  data.val = getNextValue(data.index++);
+                }
+                bits |= (resb > 0 ? 1 : 0) * power;
+                power <<= 1;
+              }
+              c = f(bits);
+              break;
+            case 2:
+              return "";
+          }
+          dictionary[3] = c;
+          w = c;
+          result.push(c);
+          while (true) {
+            if (data.index > length) {
+              return "";
+            }
+            bits = 0;
+            maxpower = Math.pow(2, numBits);
+            power = 1;
+            while (power != maxpower) {
+              resb = data.val & data.position;
+              data.position >>= 1;
+              if (data.position == 0) {
+                data.position = resetValue;
+                data.val = getNextValue(data.index++);
+              }
+              bits |= (resb > 0 ? 1 : 0) * power;
+              power <<= 1;
+            }
+            switch (c = bits) {
+              case 0:
+                bits = 0;
+                maxpower = Math.pow(2, 8);
+                power = 1;
+                while (power != maxpower) {
+                  resb = data.val & data.position;
+                  data.position >>= 1;
+                  if (data.position == 0) {
+                    data.position = resetValue;
+                    data.val = getNextValue(data.index++);
+                  }
+                  bits |= (resb > 0 ? 1 : 0) * power;
+                  power <<= 1;
+                }
+                dictionary[dictSize++] = f(bits);
+                c = dictSize - 1;
+                enlargeIn--;
+                break;
+              case 1:
+                bits = 0;
+                maxpower = Math.pow(2, 16);
+                power = 1;
+                while (power != maxpower) {
+                  resb = data.val & data.position;
+                  data.position >>= 1;
+                  if (data.position == 0) {
+                    data.position = resetValue;
+                    data.val = getNextValue(data.index++);
+                  }
+                  bits |= (resb > 0 ? 1 : 0) * power;
+                  power <<= 1;
+                }
+                dictionary[dictSize++] = f(bits);
+                c = dictSize - 1;
+                enlargeIn--;
+                break;
+              case 2:
+                return result.join("");
+            }
+            if (enlargeIn == 0) {
+              enlargeIn = Math.pow(2, numBits);
+              numBits++;
+            }
+            if (dictionary[c]) {
+              entry = dictionary[c];
+            } else {
+              if (c === dictSize) {
+                entry = w + w.charAt(0);
+              } else {
+                return null;
+              }
+            }
+            result.push(entry);
+            dictionary[dictSize++] = w + entry.charAt(0);
+            enlargeIn--;
+            w = entry;
+            if (enlargeIn == 0) {
+              enlargeIn = Math.pow(2, numBits);
+              numBits++;
+            }
+          }
+        }
+      };
+      return LZString3;
+    }();
+    if (typeof define === "function" && define.amd) {
+      define(function() {
+        return LZString2;
+      });
+    } else if (typeof module !== "undefined" && module != null) {
+      module.exports = LZString2;
+    } else if (typeof angular !== "undefined" && angular != null) {
+      angular.module("LZString", []).factory("LZString", function() {
+        return LZString2;
+      });
+    }
+  }
+});
+
 // node_modules/.pnpm/eventemitter3@5.0.1/node_modules/eventemitter3/index.mjs
 var import_index = __toESM(require_eventemitter3(), 1);
 
@@ -710,6 +1177,9 @@ onEvent_fn = async function(event, filter) {
   });
 };
 
+// src/nodes/IteratorPluginNode.ts
+var LZString = __toESM(require_lz_string(), 1);
+
 // public/iterator plugin info.png
 var iterator_plugin_info_default = "./iterator plugin info-LVNK74FJ.png";
 
@@ -721,6 +1191,27 @@ var sha256 = async (input) => {
   );
   const hexHash = Array.from(new Uint8Array(buffer)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
   return hexHash;
+};
+var compressObject = (obj) => {
+  try {
+    const jsonString = JSON.stringify(obj);
+    return LZString.compressToUTF16(jsonString);
+  } catch (error) {
+    console.error("Error compressing object:", error);
+    throw error;
+  }
+};
+var decompressObject = (compressedData) => {
+  try {
+    const decompressed = LZString.decompressFromUTF16(compressedData);
+    if (!decompressed) {
+      throw new Error("Decompression returned null or undefined.");
+    }
+    return JSON.parse(decompressed);
+  } catch (error) {
+    console.error("Error decompressing object:", error);
+    throw error;
+  }
 };
 var callGraphConnectionIds = {
   graph: "graph",
@@ -741,47 +1232,6 @@ function iteratorPluginNode(rivet) {
   const iteratorInputOutputsHelperMessage = rivet.dedent`Inputs must be an array of objects to iterate over.  Each object in the array should be a ObjectDataValue \`{type: 'object', value: <graph inputs>}\`; where <graph inputs> is of the format \`{type: 'object', value: {<graph input id>: <input value>}}\` The graph input id should match the graph's input ports.  The input value should be a DataValue. 
 
   Ouputs will be an array of ObjectDataValue \`type: 'object', value: {<graph output id>: <output value>}\``;
-  const isAnyDataValue = (data) => {
-    return typeof data == "object" && "type" in data && "value" in data && (rivet.isScalarDataType(data.type) || rivet.isArrayDataType(data.type) || rivet.isFunctionDataType(data.type));
-  };
-  const isObjectDataValue = (data) => {
-    return typeof data == "object" && data?.type == "object" && typeof data?.value == "object";
-  };
-  const validateInputItem = (item, graph, missingKeys, notDataValue) => {
-    let itemKeys = Object.keys(item);
-    if (isObjectDataValue(item)) {
-      itemKeys = Object.keys(item.value);
-    }
-    let itemValues = Object.values(item);
-    if (isObjectDataValue(item)) {
-      itemValues = Object.values(item.value);
-    }
-    const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
-    const expectedKeys = graphInputNodes.map((m) => {
-      const id = m.data["id"];
-      return id ?? null;
-    }).filter((f) => f != null);
-    if (expectedKeys.some((s) => !itemKeys.includes(s))) {
-      expectedKeys.filter((key) => !itemKeys.includes(key)).forEach((key) => missingKeys.add(key));
-      return true;
-    }
-    const invalidData = itemValues.some((s) => {
-      const isDataType = isAnyDataValue(s);
-      if (!isDataType) {
-        notDataValue.add(s);
-        return true;
-      }
-    });
-    return invalidData;
-  };
-  const cleanExpiredCache = async () => {
-    const now = Date.now();
-    iteratorPluginCacheStorage.forEach((value, key) => {
-      if (value.expiryTimestamp < now) {
-        iteratorPluginCacheStorage.delete(key);
-      }
-    });
-  };
   const IteratorPluginNodeImpl = {
     // This should create a new instance of your node type from scratch.
     create() {
@@ -898,12 +1348,6 @@ function iteratorPluginNode(rivet) {
       context.signal.addEventListener("abort", () => {
         abortIteration = true;
       });
-      const nodeId = data.nodeId;
-      const hasCache = data.hasCache;
-      const cacheObj = iteratorPluginCacheStorage.get(nodeId) ?? {
-        cache: /* @__PURE__ */ new Map(),
-        expiryTimestamp: Date.now() + 1 * 60 * 60
-      };
       const graphRef = rivet.coerceType(
         inputData[iteratorConnectionIds.graph],
         "graph-reference"
@@ -932,6 +1376,18 @@ function iteratorPluginNode(rivet) {
         return outputs;
       }
       const graph = context.project.graphs[graphRef.graphId];
+      const graphSnapshot = await sha256(
+        JSON.stringify(graph.nodes.map((m) => m.data))
+      );
+      const nodeId = data.nodeId;
+      console.log("iterator", { data, nodeId, iteratorPluginCacheStorage });
+      const hasCache = data.hasCache && nodeId != null;
+      const cacheStorage = iteratorPluginCacheStorage.get(nodeId) ?? {
+        cache: /* @__PURE__ */ new Map(),
+        expiryTimestamp: Date.now() + 1 * 60 * 60,
+        graphSnapshot
+      };
+      invalideCacheIfChanges(cacheStorage, graphSnapshot);
       const missingKeys = /* @__PURE__ */ new Set();
       const notDataValue = /* @__PURE__ */ new Set();
       const invalidInputs = iteratorInputs.some((s) => {
@@ -980,9 +1436,15 @@ function iteratorPluginNode(rivet) {
                 const cacheKey = await sha256(
                   JSON.stringify(iteratorInputData)
                 );
-                const cachedOutput = cacheObj.cache.get(cacheKey);
-                if (cachedOutput) {
-                  return cachedOutput;
+                const cachedOutputCompressed = cacheStorage.cache.get(cacheKey);
+                if (cachedOutputCompressed) {
+                  console.log("iterator", "get cache", {
+                    cacheKey,
+                    itemDataValue,
+                    cachedOutputCompressed,
+                    iteratorPluginCacheStorage
+                  });
+                  return decompressObject(cachedOutputCompressed);
                 }
               }
               itemOutput = await impl.process(iteratorInputData, context);
@@ -990,7 +1452,13 @@ function iteratorPluginNode(rivet) {
                 const cacheKey = await sha256(
                   JSON.stringify(iteratorInputData)
                 );
-                cacheObj.cache.set(cacheKey, itemOutput);
+                console.log("iterator", "set cache", {
+                  cacheKey,
+                  itemOutput,
+                  itemDataValue,
+                  iteratorPluginCacheStorage
+                });
+                cacheStorage.cache.set(cacheKey, compressObject(itemOutput));
               }
             } else {
               itemOutput[callGraphConnectionIds.outputs] = {
@@ -1017,7 +1485,11 @@ function iteratorPluginNode(rivet) {
       const iteratorOutputs = await Promise.all(addToQueue);
       await queue.onIdle();
       if (hasCache) {
-        iteratorPluginCacheStorage.set(nodeId, cacheObj);
+        console.log("iterator", "set cacheStorage", {
+          nodeId,
+          cacheStorage
+        });
+        iteratorPluginCacheStorage.set(nodeId, cacheStorage);
         void cleanExpiredCache();
       }
       const errorInIteratorOutputs = iteratorOutputs.some(
@@ -1044,6 +1516,61 @@ function iteratorPluginNode(rivet) {
       };
       return outputs;
     }
+  };
+  const isAnyDataValue = (data) => {
+    return typeof data == "object" && "type" in data && "value" in data && (rivet.isScalarDataType(data.type) || rivet.isArrayDataType(data.type) || rivet.isFunctionDataType(data.type));
+  };
+  const isObjectDataValue = (data) => {
+    return typeof data == "object" && data?.type == "object" && typeof data?.value == "object";
+  };
+  const invalideCacheIfChanges = (cacheStorage, graphSnapshot) => {
+    if (cacheStorage.graphSnapshot != graphSnapshot) {
+      console.log("iterator", "invalidate cache", {
+        cacheStorage,
+        graphSnapshot
+      });
+      cacheStorage.cache.clear();
+      cacheStorage.graphSnapshot = graphSnapshot;
+    }
+  };
+  const validateInputItem = (item, graph, missingKeys, notDataValue) => {
+    let itemKeys = Object.keys(item);
+    if (isObjectDataValue(item)) {
+      itemKeys = Object.keys(item.value);
+    }
+    let itemValues = Object.values(item);
+    if (isObjectDataValue(item)) {
+      itemValues = Object.values(item.value);
+    }
+    const graphInputNodes = graph.nodes.filter((f) => f.type == "graphInput");
+    const expectedKeys = graphInputNodes.map((m) => {
+      const id = m.data["id"];
+      return id ?? null;
+    }).filter((f) => f != null);
+    if (expectedKeys.some((s) => !itemKeys.includes(s))) {
+      expectedKeys.filter((key) => !itemKeys.includes(key)).forEach((key) => missingKeys.add(key));
+      return true;
+    }
+    const invalidData = itemValues.some((s) => {
+      const isDataType = isAnyDataValue(s);
+      if (!isDataType) {
+        notDataValue.add(s);
+        return true;
+      }
+    });
+    return invalidData;
+  };
+  const cleanExpiredCache = async () => {
+    const now = Date.now();
+    iteratorPluginCacheStorage.forEach((value, key) => {
+      if (value.expiryTimestamp < now) {
+        console.log("iterator", "delete cache", {
+          key,
+          value
+        });
+        iteratorPluginCacheStorage.delete(key);
+      }
+    });
   };
   const iteratorPluginNode2 = rivet.pluginNodeDefinition(
     IteratorPluginNodeImpl,
