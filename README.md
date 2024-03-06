@@ -2,11 +2,14 @@
 
 ## Description
 
-This is an utilities plugin.  
+This is an utilities plugin.
 
 ### Iterator Plugin
 
-The iterator plugin will It will map through an array of object inputs `objects[][]`. The plugin will then call the subgraph you'd like to execute.  In addition it has a concurrency option to limit the number of concurrent executions.
+The iterator plugin will It will map through an array of object inputs `objectDataValues[][]`. The plugin will then call the subgraph you'd like to execute for item in the array.  Additionally 
+
+- it has a `chunkSize` option to limit the number of concurrent executions.
+- it has a `cache` option to cache subgraph outputs of successful item runs.  
 
 # Installation
 
@@ -18,7 +21,7 @@ Once install you can use it as show in the examples below.  Make sure the inputs
 
 ### Inputs
 
-Inputs must be an array of objects to iterate over.  Each object in the array should be a ObjectDataValue `{type: 'object', value: <graph inputs>}`; where `<graph inputs>` is of the format `{type: `object `, value: {<graph input id>: <input value>}}` The graph input id should match the graph's input ports.  The input value should be a DataValue. 
+Inputs must be an array of objects to iterate over.  Each object in the array should be a ObjectDataValue `{type: 'object', value: <graph inputs>}`; where `<graph inputs>` is of the format `{type: `object `, value: {<graph input id>: <input value>}}` The graph input id should match the graph's input ports.  The input value should be a DataValue.
 
 ### Outputs
 

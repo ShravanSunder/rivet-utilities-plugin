@@ -736,9 +736,11 @@ var iteratorConnectionIds = {
   iteratorError: "error",
   hasCache: "hasCache"
 };
-var iteratorInputOutputsHelperMessage = "Inputs must be an array of objects to iterate over.  Each object in the array should be a ObjectDataValue `{type: 'object', value: <graph inputs>}`; where <graph inputs> is of the format `{type: `object`, value: {<graph input id>: <input value>}}` The graph input id should match the graph's input ports.  The input value should be a DataValue. \n\n Ouputs will be an array of ObjectDataValue `type: `object`, value: {<graph output id>: <output value>}`";
 function iteratorPluginNode(rivet) {
   const iteratorPluginCacheStorage = /* @__PURE__ */ new Map();
+  const iteratorInputOutputsHelperMessage = rivet.dedent`Inputs must be an array of objects to iterate over.  Each object in the array should be a ObjectDataValue \`{type: 'object', value: <graph inputs>}\`; where <graph inputs> is of the format \`{type: 'object', value: {<graph input id>: <input value>}}\` The graph input id should match the graph's input ports.  The input value should be a DataValue. 
+
+  Ouputs will be an array of ObjectDataValue \`type: 'object', value: {<graph output id>: <output value>}\``;
   const isAnyDataValue = (data) => {
     return typeof data == "object" && "type" in data && "value" in data && (rivet.isScalarDataType(data.type) || rivet.isArrayDataType(data.type) || rivet.isFunctionDataType(data.type));
   };
@@ -853,7 +855,9 @@ function iteratorPluginNode(rivet) {
       return {
         contextMenuTitle: "Iterator Plugin",
         group: "Logic",
-        infoBoxBody: "This is an iterator plugin node.  This node will map over an array and process each item with the graph provided. \n \n" + iteratorInputOutputsHelperMessage,
+        infoBoxBody: rivet.dedent`This is an iterator plugin node.  This node will map over an array and process each item with the graph provided. 
+          
+          ${iteratorInputOutputsHelperMessage}`,
         infoBoxTitle: "Iterator Plugin Node",
         infoBoxImageUri: iterator_plugin_info_default
       };
@@ -873,7 +877,7 @@ function iteratorPluginNode(rivet) {
           type: "toggle",
           dataKey: "hasCache",
           label: "Cache Execution",
-          helperMessage: "If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs."
+          helperMessage: rivet.dedent`If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs.`
         }
       ];
     },
@@ -882,7 +886,7 @@ function iteratorPluginNode(rivet) {
     getBody(data) {
       return rivet.dedent`
         Iterator Plugin Node
-        IteratorOutputs: ${data.iteratorOutputs}
+        IteratorOutputs: ${data.iteratorOutputs ?? []}
       `;
     },
     // This is the main processing function for your node. It can do whatever you like, but it must return
@@ -923,7 +927,7 @@ function iteratorPluginNode(rivet) {
         };
         outputs[iteratorConnectionIds.iteratorError] = {
           type: "string",
-          value: "Input array must be an array of objects.  Each object needs to be a DataValue.  A graph needs an object with keys that match the graph's input ports"
+          value: rivet.dedent`Input array must be an array of objects.  Each object needs to be a DataValue.  A graph needs an object with keys that match the graph's input ports`
         };
         return outputs;
       }
@@ -940,10 +944,12 @@ function iteratorPluginNode(rivet) {
         };
         let errorMessage = "Input validation error::";
         if (missingKeys.size > 0) {
-          errorMessage += " Missing keys required for graph: " + Array.from(missingKeys).map((key) => `'${key}'`).join("; ");
+          errorMessage += `Missing keys required for graph: 
+            ${Array.from(missingKeys).map((key) => key).join("; ")}`;
         }
         if (notDataValue.size > 0) {
-          errorMessage += " Invalid Inputs, make sure each input item is a ObjectDataValue: " + Array.from(notDataValue).map((value) => `'${JSON.stringify(value)}'`).join("; ");
+          errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue: 
+            ${Array.from(notDataValue).map((value) => JSON.stringify(value)).join("; ")}`;
         }
         outputs[iteratorConnectionIds.iteratorError] = {
           type: "string",
@@ -1027,7 +1033,7 @@ function iteratorPluginNode(rivet) {
           value: iteratorOutputs.filter(
             (f) => f[callGraphConnectionIds.outputs]?.type == "control-flow-excluded"
           ).map(
-            (m, i) => `ItemIndex: ${i}:: ${m[callGraphConnectionIds.error]}`
+            (m, i) => `ItemIndex: ${i}:: ${m[callGraphConnectionIds.error]?.value}`
           ).join("; ")
         };
         return outputs;
