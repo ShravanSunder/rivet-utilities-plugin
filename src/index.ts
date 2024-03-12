@@ -3,14 +3,16 @@
 // a parameter, and you can use it to access any Rivet functionality you need.
 import type { NodeId, RivetPlugin, RivetPluginInitializer } from "@ironclad/rivet-core";
 
-import { iteratorPluginNode } from "./nodes/IteratorPluginNode.js";
+import { createIteratorNode } from "./nodes/IteratorNode.js";
+import { createPineconeSearchNode } from './nodes/PineconeSearchNode';
 
 // A Rivet plugin must default export a plugin initializer function. This takes in the Rivet library as its
 // only parameter. This function must return a valid RivetPlugin object.
 const plugin: RivetPluginInitializer = (rivet) => {
 
   // Initialize any nodes in here in the same way, by passing them the Rivet library.
-  const utilitiesNode = iteratorPluginNode(rivet);
+  const iteratorNode = createIteratorNode(rivet);
+  const pineconeSearchNode = createPineconeSearchNode(rivet);
 
   // The plugin object is the definition for your plugin.
   const utilitiesPlugin: RivetPlugin = {
@@ -28,20 +30,20 @@ const plugin: RivetPluginInitializer = (rivet) => {
         description: "This is an utilities setting for the utilities plugin.",
         helperText: "This is an utilities setting for the utilities plugin.",
       },
-    },
-
-    // Define any additional context menu groups your plugin adds here.
-    contextMenuGroups: [
-      {
-        id: "utilities",
-        label: "Utilities",
+      pineconeApiKey: {
+        type: 'secret',
+        label: 'Pinecone API Key',
+        description: 'The API key for the Pinecone service.',
+        pullEnvironmentVariable: 'PINECONE_API_KEY',
+        helperText: 'You may also set the PINECONE_API_KEY environment variable.',
       },
-    ],
+    },
 
     // Register any additional nodes your plugin adds here. This is passed a `register`
     // function, which you can use to register your nodes.
     register: (register) => {
-      register(utilitiesNode);
+      register(iteratorNode);
+      register(pineconeSearchNode);
     },
   };
 

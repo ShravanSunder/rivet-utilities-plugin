@@ -1,7 +1,7 @@
 {
   "name": "rivet-utilities-plugin",
   "packageManager": "yarn@3.5.0",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "type": "module",
   "main": "dist/bundle.js",
   "files": [
@@ -13,10 +13,13 @@
     "watch:tsc": "tsc -b -w --preserveWatchOutput",
     "watch:esbuild": "tsx bundle.ts --watch",
     "watch:esbuild:sync": "tsx bundle.ts --watch --sync",
-    "publish": "npm publish --access public"
+    "publish": "npm publish --access public --tag latest"
   },
   "dependencies": {
     "@ironclad/rivet-core": "^1.15.0",
+    "@pinecone-database/pinecone": "^2.1.0",
+    "@types/crypto-js": "^4.2.2",
+    "crypto-js": "^4.2.0",
     "lz-string": "^1.5.0",
     "p-queue": "^8.0.1",
     "ts-pattern": "^5.0.8"
