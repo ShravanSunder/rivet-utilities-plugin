@@ -1,7 +1,7 @@
 {
   "name": "rivet-utilities-plugin",
   "packageManager": "yarn@3.5.0",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "type": "module",
   "main": "dist/bundle.js",
   "files": [
@@ -13,7 +13,7 @@
     "watch:tsc": "tsc -b -w --preserveWatchOutput",
     "watch:esbuild": "tsx bundle.ts --watch",
     "watch:esbuild:sync": "tsx bundle.ts --watch --sync",
-    "publish": "publish --access public --tag latest"
+    "publish:package": "pnpm publish --access public --tag latest"
   },
   "dependencies": {
     "@ironclad/rivet-core": "^1.15.0",
