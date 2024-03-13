@@ -2,20 +2,24 @@
 
 ## Description
 
-This is an utilities plugin.
+This is an utilities plugin for rivet
 
-### Iterator Plugin
+### Iterator Node
 
-The iterator plugin will It will map through an array of object inputs `objectDataValues[][]`. The plugin will then call the subgraph you'd like to execute for item in the array.  Additionally 
+The iterator Node will It will map through an array of object inputs `objectDataValues[][]`. The plugin will then call the subgraph you'd like to execute for item in the array.  Additionally
 
 - it has a `chunkSize` option to limit the number of concurrent executions.
-- it has a `cache` option to cache subgraph outputs of successful item runs.  
+- it has a `cache` option to cache subgraph outputs of successful item runs.
+
+### Pinecone Search Node
+
+The node will allow you to query pinecone for vectors.  Allows `filters with metadata`.   It also allows you to get `scores` back from the api.  These are the reason to use this over the default Vector Retreival node in rivet.
 
 # Installation
 
 See [Rivet Plugins](https://rivet.ironcladapp.com/docs/user-guide/plugins) for more details
 
-## Use
+### Using Iterator
 
 Once install you can use it as show in the examples below.  Make sure the inputs are DataValues.
 
@@ -30,6 +34,16 @@ Ouputs will be an array of ObjectDataValue `type: `object `, value: {<graph outp
 ![1709682618198](image/README/1709682618198.png)
 
 ![1709682622326](image/README/1709682622326.png)
+
+
+
+### Using Pinecone Search Node
+
+![1710344219550](image/README/1710344219550.png)
+
+## Breaking changes
+
+v0.3.0 has renamed the Iterator Node (from Iterator Plugin Node).  You'll have to readd the node
 
 ## Source
 

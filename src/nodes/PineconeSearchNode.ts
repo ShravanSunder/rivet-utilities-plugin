@@ -45,7 +45,7 @@ export type PineconeSearchNode = ChartNode<'pineconeSearchNode', PineconeSearchN
 
 export type PineconeSearchNodeData = {
 	topK: number;
-	useKInput?: boolean;
+	useTopKInput?: boolean;
 	collectionUrl: string;
 	useCollectionUrlInput?: boolean;
 	namespace: string;
@@ -69,7 +69,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				data: {
 					topK: 10,
 					collectionUrl: '',
-					useKInput: false,
+					useTopKInput: false,
 					useCollectionUrlInput: false,
 					namespace: '',
 					vector: [],
@@ -97,10 +97,10 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				});
 			}
 
-			if (data.useKInput) {
+			if (data.useTopKInput) {
 				inputs.push({
 					id: pineconeSearchIds.topK,
-					title: 'K',
+					title: 'TopK',
 					dataType: 'number',
 					required: true,
 				});
@@ -152,7 +152,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 			};
 		},
 
-		getEditors(nodeData): EditorDefinition<PineconeSearchNode>[] {
+		getEditors(_nodeData): EditorDefinition<PineconeSearchNode>[] {
 			return [
 				{
 					type: 'number',
@@ -160,7 +160,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					label: 'topK',
 					defaultValue: 10,
 					helperMessage: 'The number of nearest neighbors to return',
-					useInputToggleDataKey: 'useKInput',
+					useInputToggleDataKey: 'useTopKInput',
 				},
 				{
 					type: 'string',
@@ -183,7 +183,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 		getBody(data: PineconeSearchNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
 			console.log('pinecone', 'outputs body');
 			return rivet.dedent`
-      K: ${data.useKInput ? '(using input)' : data.topK}
+      TopK: ${data.useTopKInput ? '(using input)' : data.topK}
       Collection Url: ${data.useCollectionUrlInput ? '(using input)' : data.collectionUrl}
 			Namespace: ${data.useNamespaceInput ? '(using input)' : data.namespace ?? ''}
 			Matches: ${data.matches ?? []}
@@ -204,7 +204,9 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					return output;
 				}
 
-				const topK = data.useKInput ? rivet.coerceType(inputData[pineconeSearchIds.topK], 'number') : data.topK;
+				const topK = data.useTopKInput
+					? rivet.coerceType(inputData[pineconeSearchIds.topK], 'number')
+					: data.topK ?? 10;
 				const collectionUrl = data.useCollectionUrlInput
 					? rivet.coerceType(inputData[pineconeSearchIds.collectionUrl], 'string')
 					: data.collectionUrl;
@@ -215,7 +217,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				const filter = (rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], 'object') ??
 					{}) as PineconeMetadata;
 
-				console.log('pinecone', 'got data all', topK, collectionUrl, namespace, vector, filter);
+				console.log('pinecone', 'got data all', topK);
 
 				const db = new PineconeVectorDatabase(rivet, apiKey);
 				const result = await db.query({
@@ -224,7 +226,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					namespace: namespace,
 					vector: vector,
 					filter: filter,
-					includeValues: true,
+					includeValues: false,
 				});
 
 				output[pineconeSearchIds.matches] = {
