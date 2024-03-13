@@ -8162,6 +8162,7 @@ var PineconeVectorDatabase = class {
   async query(params) {
     const collectionDetails = getCollection(params.collectionUrl);
     const req = params;
+    console.log("pinecone", req);
     const response = await fetch(`${collectionDetails.host}/query`, {
       method: "POST",
       body: JSON.stringify({
@@ -8197,7 +8198,7 @@ function getCollection(collectionUrlString) {
 var pineconeSearchIds = {
   matches: "matches",
   error: "error",
-  k: "k",
+  topK: "topK",
   collectionUrl: "collectionUrl",
   vector: "vector",
   namespace: "namespace",
@@ -8214,7 +8215,7 @@ function createPineconeSearchNode(rivet) {
         title: "Pinecone Search",
         visualData: { x: 0, y: 0, width: 200 },
         data: {
-          k: 10,
+          topK: 10,
           collectionUrl: "",
           useKInput: false,
           useCollectionUrlInput: false,
@@ -8227,7 +8228,6 @@ function createPineconeSearchNode(rivet) {
     },
     getInputDefinitions(data) {
       const inputs = [];
-      console.log("pinecone", "getting inputs");
       inputs.push({
         id: pineconeSearchIds.vector,
         title: "Vector",
@@ -8244,7 +8244,7 @@ function createPineconeSearchNode(rivet) {
       }
       if (data.useKInput) {
         inputs.push({
-          id: pineconeSearchIds.k,
+          id: pineconeSearchIds.topK,
           title: "K",
           dataType: "number",
           required: true
@@ -8262,7 +8262,7 @@ function createPineconeSearchNode(rivet) {
         id: pineconeSearchIds.filter,
         title: "Filter",
         dataType: "object",
-        required: true
+        required: false
       });
       return inputs;
     },
@@ -8273,11 +8273,6 @@ function createPineconeSearchNode(rivet) {
           id: pineconeSearchIds.matches,
           title: "Matches",
           dataType: "any[]"
-        },
-        {
-          id: pineconeSearchIds.namespace,
-          title: "Namespace",
-          dataType: "string"
         },
         {
           id: pineconeSearchIds.usage,
@@ -8300,8 +8295,8 @@ function createPineconeSearchNode(rivet) {
       return [
         {
           type: "number",
-          dataKey: "k",
-          label: "k",
+          dataKey: "topK",
+          label: "topK",
           defaultValue: 10,
           helperMessage: "The number of nearest neighbors to return",
           useInputToggleDataKey: "useKInput"
@@ -8327,16 +8322,15 @@ function createPineconeSearchNode(rivet) {
     getBody(data) {
       console.log("pinecone", "outputs body");
       return rivet.dedent`
-      K: ${data.useKInput ? "(using input)" : data.k}
-      Collection Id: ${data.useCollectionUrlInput ? "(using input)" : data.collectionUrl}
-			Namespace: ${data.useNamespaceInput ? "(using input)" : data.namespace}
-			Matches: ${data.matches}
+      K: ${data.useKInput ? "(using input)" : data.topK}
+      Collection Url: ${data.useCollectionUrlInput ? "(using input)" : data.collectionUrl}
+			Namespace: ${data.useNamespaceInput ? "(using input)" : data.namespace ?? ""}
+			Matches: ${data.matches ?? []}
     `;
     },
     async process(data, inputData, context) {
       console.log("pinecone", "process");
       try {
-        console.log("here!");
         const apiKey = context.getPluginConfig("pineconeApiKey");
         const output = {};
         if (!apiKey) {
@@ -8347,15 +8341,16 @@ function createPineconeSearchNode(rivet) {
           };
           return output;
         }
-        const k = data.useKInput ? rivet.coerceType(inputData[pineconeSearchIds.k], "number") : data.k;
+        const topK = data.useKInput ? rivet.coerceType(inputData[pineconeSearchIds.topK], "number") : data.topK;
         const collectionUrl = data.useCollectionUrlInput ? rivet.coerceType(inputData[pineconeSearchIds.collectionUrl], "string") : data.collectionUrl;
-        const namespace = data.useNamespaceInput ? rivet.coerceType(inputData[pineconeSearchIds.namespace], "string") : data.namespace;
+        const namespace = data.useNamespaceInput ? rivet.coerceType(inputData[pineconeSearchIds.namespace], "string") : data.namespace ?? "";
         const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], "vector");
-        const filter = rivet.coerceType(inputData[pineconeSearchIds.filter], "object");
+        const filter = rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], "object") ?? {};
+        console.log("pinecone", "got data all", topK, collectionUrl, namespace, vector, filter);
         const db = new PineconeVectorDatabase(rivet, apiKey);
         const result = await db.query({
           collectionUrl,
-          k,
+          topK,
           namespace,
           vector,
           filter,
@@ -8364,10 +8359,6 @@ function createPineconeSearchNode(rivet) {
         output[pineconeSearchIds.matches] = {
           type: "any[]",
           value: result.matches
-        };
-        output[pineconeSearchIds.namespace] = {
-          type: "string",
-          value: result.namespace
         };
         output[pineconeSearchIds.usage] = {
           type: "object",

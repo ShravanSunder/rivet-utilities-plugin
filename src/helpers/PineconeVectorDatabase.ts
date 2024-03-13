@@ -69,6 +69,8 @@ export class PineconeVectorDatabase {
 		const collectionDetails = getCollection(params.collectionUrl);
 		const req: Record<string, unknown> = params;
 
+		console.log('pinecone', req);
+
 		const response = await fetch(`${collectionDetails.host}/query`, {
 			method: 'POST',
 			body: JSON.stringify({

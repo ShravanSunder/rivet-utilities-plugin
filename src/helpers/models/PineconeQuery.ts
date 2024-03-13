@@ -4,7 +4,7 @@ import { match } from 'ts-pattern';
 
 export type PineconeQuery = {
 	collectionUrl: string;
-	k: number;
+	topK: number;
 	includeValues: boolean;
 	namespace: string;
 	filter: PineconeMetadata;
