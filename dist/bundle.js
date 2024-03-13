@@ -8195,17 +8195,19 @@ function getCollection(collectionUrlString) {
 
 // src/nodes/PineconeSearchNode.ts
 var pineconeSearchIds = {
-  results: "results",
+  matches: "matches",
   error: "error",
   k: "k",
   collectionUrl: "collectionUrl",
   vector: "vector",
   namespace: "namespace",
-  filter: "filter"
+  filter: "filter",
+  usage: "usage"
 };
 function createPineconeSearchNode(rivet) {
   const PineconeSearchNodeImpl = {
     create() {
+      console.log("pinecone", "creating pinecone search node");
       return {
         id: rivet.newId(),
         type: "pineconeSearchNode",
@@ -8218,12 +8220,14 @@ function createPineconeSearchNode(rivet) {
           useCollectionUrlInput: false,
           namespace: "",
           vector: [],
-          filter: {}
+          filter: {},
+          matches: []
         }
       };
     },
     getInputDefinitions(data) {
       const inputs = [];
+      console.log("pinecone", "getting inputs");
       inputs.push({
         id: pineconeSearchIds.vector,
         title: "Vector",
@@ -8263,11 +8267,22 @@ function createPineconeSearchNode(rivet) {
       return inputs;
     },
     getOutputDefinitions() {
+      console.log("pinecone", "getting outputs");
       return [
         {
-          id: pineconeSearchIds.results,
-          title: "Results",
+          id: pineconeSearchIds.matches,
+          title: "Matches",
           dataType: "any[]"
+        },
+        {
+          id: pineconeSearchIds.namespace,
+          title: "Namespace",
+          dataType: "string"
+        },
+        {
+          id: pineconeSearchIds.usage,
+          title: "Usage",
+          dataType: "object"
         }
       ];
     },
@@ -8310,38 +8325,67 @@ function createPineconeSearchNode(rivet) {
     // This function returns the body of the node when it is rendered on the graph. You should show
     // what the current data of the node is in some way that is useful at a glance.
     getBody(data) {
+      console.log("pinecone", "outputs body");
       return rivet.dedent`
       K: ${data.useKInput ? "(using input)" : data.k}
       Collection Id: ${data.useCollectionUrlInput ? "(using input)" : data.collectionUrl}
+			Namespace: ${data.useNamespaceInput ? "(using input)" : data.namespace}
+			Matches: ${data.matches}
     `;
     },
     async process(data, inputData, context) {
-      const apiKey = context.getPluginConfig("pineconeApiKey");
-      const output = {};
-      if (!apiKey) {
-        output[pineconeSearchIds.results];
-        output[pineconeSearchIds.error] = {
-          type: "control-flow-excluded",
-          value: void 0
+      console.log("pinecone", "process");
+      try {
+        console.log("here!");
+        const apiKey = context.getPluginConfig("pineconeApiKey");
+        const output = {};
+        if (!apiKey) {
+          output[pineconeSearchIds.matches];
+          output[pineconeSearchIds.error] = {
+            type: "control-flow-excluded",
+            value: void 0
+          };
+          return output;
+        }
+        const k = data.useKInput ? rivet.coerceType(inputData[pineconeSearchIds.k], "number") : data.k;
+        const collectionUrl = data.useCollectionUrlInput ? rivet.coerceType(inputData[pineconeSearchIds.collectionUrl], "string") : data.collectionUrl;
+        const namespace = data.useNamespaceInput ? rivet.coerceType(inputData[pineconeSearchIds.namespace], "string") : data.namespace;
+        const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], "vector");
+        const filter = rivet.coerceType(inputData[pineconeSearchIds.filter], "object");
+        const db = new PineconeVectorDatabase(rivet, apiKey);
+        const result = await db.query({
+          collectionUrl,
+          k,
+          namespace,
+          vector,
+          filter,
+          includeValues: true
+        });
+        output[pineconeSearchIds.matches] = {
+          type: "any[]",
+          value: result.matches
+        };
+        output[pineconeSearchIds.namespace] = {
+          type: "string",
+          value: result.namespace
+        };
+        output[pineconeSearchIds.usage] = {
+          type: "object",
+          value: result.usage
         };
         return output;
+      } catch (cause) {
+        return {
+          [pineconeSearchIds.matches]: {
+            type: "control-flow-excluded",
+            value: void 0
+          },
+          [pineconeSearchIds.error]: {
+            type: "string",
+            value: cause.message
+          }
+        };
       }
-      const k = data.useKInput ? rivet.coerceType(inputData[pineconeSearchIds.k], "number") : data.k;
-      const collectionUrl = data.useCollectionUrlInput ? rivet.coerceType(inputData[pineconeSearchIds.collectionUrl], "string") : data.collectionUrl;
-      const namespace = data.useNamespaceInput ? rivet.coerceType(inputData[pineconeSearchIds.namespace], "string") : data.namespace;
-      const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], "vector");
-      const filter = rivet.coerceType(inputData[pineconeSearchIds.filter], "object");
-      const db = new PineconeVectorDatabase(rivet, apiKey);
-      const results = await db.query({
-        collectionUrl,
-        k,
-        namespace,
-        vector,
-        filter,
-        includeValues: true
-      });
-      output[pineconeSearchIds.results] = results;
-      return output;
     }
   };
   return rivet.pluginNodeDefinition(PineconeSearchNodeImpl, "Pinecone Search");

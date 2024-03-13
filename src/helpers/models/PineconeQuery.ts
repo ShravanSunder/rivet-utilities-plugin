@@ -16,7 +16,7 @@ export type PineconeQueryResult = {
 		score: number;
 		values: number[];
 		metadata: PineconeMetadata;
-	};
+	}[];
 	namespace: string;
 	usage: Record<string, unknown>;
 };
