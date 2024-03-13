@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@ironclad/rivet-core": "^1.15.0",
-    "@pinecone-database/pinecone": "^2.1.0",
     "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
     "lz-string": "^1.5.0",

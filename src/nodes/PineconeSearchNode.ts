@@ -26,15 +26,30 @@ import type {
 	LooseDataValue,
 	DataValue,
 } from '@ironclad/rivet-core';
+import { PineconeMetadata } from '../helpers/models/PineconeMetadata';
+import { PineconeVectorDatabase } from '../helpers/PineconeVectorDatabase';
+
+const pineconeSearchIds = {
+	results: 'results' as PortId,
+	error: 'error' as PortId,
+	k: 'k' as PortId,
+	collectionUrl: 'collectionUrl' as PortId,
+	vector: 'vector' as PortId,
+	namespace: 'namespace' as PortId,
+	filter: 'filter' as PortId,
+} as const;
 
 export type PineconeSearchNode = ChartNode<'pineconeSearchNode', PineconeSearchNodeData>;
 
 export type PineconeSearchNodeData = {
 	k: number;
 	useKInput?: boolean;
-
-	collectionId: string;
-	useCollectionIdInput?: boolean;
+	collectionUrl: string;
+	useCollectionUrlInput?: boolean;
+	namespace: string;
+	useNamespaceInput?: boolean;
+	vector: number[];
+	filter: PineconeMetadata;
 };
 
 // The function that defines the plugin node for Vector Nearest Neighbors.
@@ -49,26 +64,29 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				visualData: { x: 0, y: 0, width: 200 },
 				data: {
 					k: 10,
-					collectionId: '',
+					collectionUrl: '',
 					useKInput: false,
-					useCollectionIdInput: false,
+					useCollectionUrlInput: false,
+					namespace: '',
+					vector: [],
+					filter: {},
 				},
 			};
 		},
 
 		getInputDefinitions(data): NodeInputDefinition[] {
-			const inputDefinitions: NodeInputDefinition[] = [];
+			const inputs: NodeInputDefinition[] = [];
 
-			inputDefinitions.push({
-				id: 'vector' as PortId,
+			inputs.push({
+				id: pineconeSearchIds.vector,
 				title: 'Vector',
 				dataType: 'vector',
 				required: true,
 			});
 
-			if (data.useCollectionIdInput) {
-				inputDefinitions.push({
-					id: 'collectionId' as PortId,
+			if (data.useCollectionUrlInput) {
+				inputs.push({
+					id: pineconeSearchIds.collectionUrl,
 					title: 'Collection ID',
 					dataType: 'string',
 					required: true,
@@ -76,39 +94,41 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 			}
 
 			if (data.useKInput) {
-				inputDefinitions.push({
-					id: 'k' as PortId,
+				inputs.push({
+					id: pineconeSearchIds.k,
 					title: 'K',
 					dataType: 'number',
 					required: true,
 				});
 			}
 
-			return inputDefinitions;
+			if (data.useNamespaceInput) {
+				inputs.push({
+					id: pineconeSearchIds.namespace,
+					title: 'Namespace',
+					dataType: 'string',
+					required: true,
+				});
+			}
+
+			inputs.push({
+				id: pineconeSearchIds.filter,
+				title: 'Filter',
+				dataType: 'object',
+				required: true,
+			});
+
+			return inputs;
 		},
 
 		getOutputDefinitions(): NodeOutputDefinition[] {
 			return [
 				{
-					id: 'results' as PortId,
+					id: pineconeSearchIds.results,
 					title: 'Results',
 					dataType: 'any[]',
 				},
 			];
-		},
-
-		getEditors(nodeData): EditorDefinition<PineconeSearchNode>[] {
-			return [
-				// Define editor configurations here
-			];
-		},
-		// This function returns the body of the node when it is rendered on the graph. You should show
-		// what the current data of the node is in some way that is useful at a glance.
-		getBody(data: PineconeSearchNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
-			return rivet.dedent`
-      K: ${data.useKInput ? '(using input)' : data.k}
-      Collection Id: ${data.useCollectionIdInput ? '(using input)' : data.collectionId}
-    `;
 		},
 
 		getUIData(): NodeUIData {
@@ -121,23 +141,74 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				group: ['Input/Output'],
 			};
 		},
+		getEditors(nodeData): EditorDefinition<PineconeSearchNode>[] {
+			return [
+				{
+					type: 'number',
+					dataKey: 'k',
+					label: 'k',
+					defaultValue: 10,
+					helperMessage: 'The number of nearest neighbors to return',
+					useInputToggleDataKey: 'useKInput',
+				},
+				{
+					type: 'string',
+					dataKey: 'collectionUrl',
+					label: 'Collection Url',
+					helperMessage: 'The collection url to search',
+					useInputToggleDataKey: 'useCollectionUrlInput',
+				},
+				{
+					type: 'string',
+					dataKey: 'namespace',
+					label: 'Namespace',
+					helperMessage: 'The namespace to search',
+					useInputToggleDataKey: 'useNamespaceInput',
+				},
+			];
+		},
+		// This function returns the body of the node when it is rendered on the graph. You should show
+		// what the current data of the node is in some way that is useful at a glance.
+		getBody(data: PineconeSearchNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
+			return rivet.dedent`
+      K: ${data.useKInput ? '(using input)' : data.k}
+      Collection Id: ${data.useCollectionUrlInput ? '(using input)' : data.collectionUrl}
+    `;
+		},
 
-		async process(inputs: Inputs, context: InternalProcessContext): Promise<Outputs> {
-			const apiKey = context.settings.pluginSettings?.iteratorPlugin?.pineconeApiKey as string;
-
-			if (!!!apiKey) {
-				const output: Outputs = {};
-				output['error' as PortId] = {
+		async process(data: PineconeSearchNodeData, inputData: Inputs, context: InternalProcessContext): Promise<Outputs> {
+			const apiKey = context.getPluginConfig('pineconeApiKey');
+			const output: Outputs = {};
+			if (!apiKey) {
+				output[pineconeSearchIds.results];
+				output[pineconeSearchIds.error] = {
 					type: 'control-flow-excluded',
 					value: undefined,
 				};
+				return output;
 			}
-      
-			const output: Outputs = {};
-			output['results' as PortId] = {
-				type: 'any',
-				value: 'afdkdsjkdsfksdf',
-			};
+
+			const k = data.useKInput ? rivet.coerceType(inputData[pineconeSearchIds.k], 'number') : data.k;
+			const collectionUrl = data.useCollectionUrlInput
+				? rivet.coerceType(inputData[pineconeSearchIds.collectionUrl], 'string')
+				: data.collectionUrl;
+			const namespace = data.useNamespaceInput
+				? rivet.coerceType(inputData[pineconeSearchIds.namespace], 'string')
+				: data.namespace;
+			const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], 'vector');
+			const filter = rivet.coerceType(inputData[pineconeSearchIds.filter], 'object') as PineconeMetadata;
+
+			const db = new PineconeVectorDatabase(rivet, apiKey);
+			const results = await db.query({
+				collectionUrl: collectionUrl,
+				k: k,
+				namespace: namespace,
+				vector: vector,
+				filter: filter,
+				includeValues: true,
+			});
+
+			output[pineconeSearchIds.results] = results;
 			// Implement the processing logic here
 			return output;
 		},
