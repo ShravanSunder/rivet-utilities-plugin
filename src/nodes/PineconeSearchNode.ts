@@ -196,10 +196,13 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				const apiKey = context.getPluginConfig('pineconeApiKey');
 				const output: Outputs = {};
 				if (!apiKey) {
-					output[pineconeSearchIds.matches];
-					output[pineconeSearchIds.error] = {
+					output[pineconeSearchIds.matches] = {
 						type: 'control-flow-excluded',
 						value: undefined,
+					}
+					output[pineconeSearchIds.matches] = {
+						type: 'string',
+						value: 'Missing Pinecone API key',
 					};
 					return output;
 				}
