@@ -199,7 +199,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					output[pineconeSearchIds.matches] = {
 						type: 'control-flow-excluded',
 						value: undefined,
-					}
+					};
 					output[pineconeSearchIds.matches] = {
 						type: 'string',
 						value: 'Missing Pinecone API key',
@@ -230,6 +230,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					vector: vector,
 					filter: filter,
 					includeValues: false,
+					includeMetadata: true,
 				});
 
 				output[pineconeSearchIds.matches] = {

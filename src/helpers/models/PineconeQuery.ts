@@ -6,6 +6,7 @@ export type PineconeQuery = {
 	collectionUrl: string;
 	topK: number;
 	includeValues: boolean;
+	includeMetadata: boolean;
 	namespace: string;
 	filter: PineconeMetadata;
 } & ({ vector: number[] } | { id: string });

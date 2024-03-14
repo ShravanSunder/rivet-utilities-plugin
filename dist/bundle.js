@@ -8357,7 +8357,8 @@ function createPineconeSearchNode(rivet) {
           namespace,
           vector,
           filter,
-          includeValues: false
+          includeValues: false,
+          includeMetadata: true
         });
         output[pineconeSearchIds.matches] = {
           type: "any[]",
