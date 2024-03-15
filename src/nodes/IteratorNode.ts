@@ -102,7 +102,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 				// This is the default data that your node will store
 				data: {
 					iteratorOutputs: [],
-					chunkSize: 1,
+					chunkSize: 5,
 					useChunkSizeToggle: false,
 					hasCache: false,
 				} satisfies IteratorNodeData,
