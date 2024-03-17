@@ -1,7 +1,7 @@
 import { z } from 'zod';
-export const PineconeSparseVector = z.object({
+export const pineconeSparseVectorSchema = z.object({
 	indices: z.array(z.number()),
 	values: z.array(z.number()),
 });
 
-export type PineconeSparseVector = z.infer<typeof PineconeSparseVector>;
+export type PineconeSparseVector = z.infer<typeof pineconeSparseVectorSchema>;

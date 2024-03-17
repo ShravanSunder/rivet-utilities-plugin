@@ -1,10 +1,10 @@
 import type { DataValue, VectorDataValue } from '@ironclad/rivet-core';
 import { match } from 'ts-pattern';
-import { PineconeSparseVector } from './PineconeSparseVector';
+import { PineconeSparseVector, pineconeSparseVectorSchema } from './PineconeSparseVector';
 import { z } from 'zod';
 import { pineconeMetadataSchema } from './PineconeMetadata';
 
-const PineconeQueryBase = z.object({
+const pineconeQueryBaseSchema = z.object({
 	collectionUrl: z.string(),
 	topK: z.number(),
 	includeValues: z.boolean(),
@@ -13,12 +13,12 @@ const PineconeQueryBase = z.object({
 	filter: z.record(z.unknown()),
 });
 
-export const pineconeQueryWithVectorSchema = PineconeQueryBase.extend({
+export const pineconeQueryWithVectorSchema = pineconeQueryBaseSchema.extend({
 	vector: z.array(z.number()),
-	sparseVector: PineconeSparseVector.optional(),
+	sparseVector: pineconeSparseVectorSchema.optional(),
 });
 
-export const pineconeQueryWithIdSchema = PineconeQueryBase.extend({
+export const pineconeQueryWithIdSchema = pineconeQueryBaseSchema.extend({
 	id: z.string(),
 });
 

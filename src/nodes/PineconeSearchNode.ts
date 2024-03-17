@@ -54,7 +54,7 @@ export type PineconeSearchNodeData = {
 	namespace: string;
 	useNamespaceInput?: boolean;
 	vector: number[];
-	filter: PineconeMetadata;
+	filter: Record<string, unknown>;
 	matches: PineconeQueryResult['matches'];
 	sparseVector: PineconeSparseVector;
 };
@@ -89,21 +89,22 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 
 		getInputDefinitions(data): NodeInputDefinition[] {
 			const inputs: NodeInputDefinition[] = [];
+
+			if (data.useCollectionUrlInput) {
+				inputs.push({
+					id: pineconeSearchIds.collectionUrl,
+					title: 'Collection Url',
+					dataType: 'string',
+					required: true,
+				});
+			}
+
 			inputs.push({
 				id: pineconeSearchIds.vector,
 				title: 'Vector',
 				dataType: 'vector',
 				required: true,
 			});
-
-			if (data.useCollectionUrlInput) {
-				inputs.push({
-					id: pineconeSearchIds.collectionUrl,
-					title: 'Collection ID',
-					dataType: 'string',
-					required: true,
-				});
-			}
 
 			if (data.useTopKInput) {
 				inputs.push({
@@ -215,7 +216,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 						type: 'control-flow-excluded',
 						value: undefined,
 					};
-					output[pineconeSearchIds.matches] = {
+					output[pineconeSearchIds.error] = {
 						type: 'string',
 						value: 'Missing Pinecone API key',
 					};
@@ -235,9 +236,9 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				const filter = z
 					.record(z.unknown())
 					.parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], 'object') ?? {});
-				const sparseVector = PineconeSparseVector.nullish().parse(
-					rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], 'object')
-				);
+				const sparseVector = pineconeMetadataSchema
+					.nullish()
+					.parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], 'object'));
 
 				const db = new PineconeVectorDatabase(rivet, apiKey);
 				const result = await db.query({
@@ -277,5 +278,5 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 	};
 
 	// Register the node implementation with Rivet and return its definition
-	return rivet.pluginNodeDefinition(PineconeSearchNodeImpl, 'Pinecone Search');
+	return rivet.pluginNodeDefinition(PineconeSearchNodeImpl, 'Pinecone Search Node');
 }

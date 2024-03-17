@@ -5,6 +5,7 @@ import type { NodeId, RivetPlugin, RivetPluginInitializer } from '@ironclad/rive
 
 import { createIteratorNode } from './nodes/IteratorNode.js';
 import { createPineconeSearchNode } from './nodes/PineconeSearchNode';
+import { createPineconeUpsertNode } from './nodes/PineconeUpsertNode.js';
 
 // A Rivet plugin must default export a plugin initializer function. This takes in the Rivet library as its
 // only parameter. This function must return a valid RivetPlugin object.
@@ -12,6 +13,7 @@ const plugin: RivetPluginInitializer = (rivet) => {
 	// Initialize any nodes in here in the same way, by passing them the Rivet library.
 	const iteratorNode = createIteratorNode(rivet);
 	const pineconeSearchNode = createPineconeSearchNode(rivet);
+	const pineconeUpsertNode = createPineconeUpsertNode(rivet);
 
 	// The plugin object is the definition for your plugin.
 	const utilitiesPlugin: RivetPlugin = {
@@ -37,6 +39,7 @@ const plugin: RivetPluginInitializer = (rivet) => {
 		register: (register) => {
 			register(iteratorNode);
 			register(pineconeSearchNode);
+			register(pineconeUpsertNode);
 		},
 	};
 

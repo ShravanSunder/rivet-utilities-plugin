@@ -13,6 +13,7 @@ import sha256 from 'crypto-js/sha256';
 import { createDigest } from './createDigest';
 import { PineconeQuery, PineconeQueryResult } from './models/PineconeQuery';
 import { PineconeSparseVector } from './models/PineconeSparseVector';
+import { PineconeUpsertRequest } from './models/PineconeUpsert';
 
 /**
  * Retrieves the host from a given Pinecone collection URL.
@@ -45,30 +46,20 @@ export class PineconeVectorDatabase {
 		this.#rivet = rivet;
 	}
 
-	async upsert(params: {
-		collection: DataValue;
-		vector: VectorDataValue;
-		metadata: PineconeMetadata;
-		sparseVector: PineconeSparseVector;
-		namespace: string;
-		id?: string;
-	}): Promise<void> {
-		const collectionDetails = getCollection(this.#rivet.coerceType(params.collection, 'string'));
+	async upsert(params: PineconeUpsertRequest): Promise<true> {
+		const collectionDetails = getCollection(params.collectionUrl);
 
-		if (!params.id) {
-			params.id = await createDigest(params.vector.value.join(','));
-		}
+		const vectors = params.vectors.map((v) => {
+			return {
+				...v,
+			};
+		});
 
 		const response = await fetch(`${collectionDetails.host}/vectors/upsert`, {
 			method: 'POST',
 			body: JSON.stringify({
-				vectors: [
-					{
-						id: params.id,
-						values: params.vector.value,
-						metadata: params.metadata,
-					},
-				],
+				vectors,
+				namespace: params.namespace,
 			}),
 			headers: {
 				'Content-Type': 'application/json',
@@ -80,6 +71,8 @@ export class PineconeVectorDatabase {
 		if (response.status !== 200) {
 			throw new Error(`Pinecone error: ${await response.text()}`);
 		}
+
+		return true;
 	}
 
 	async query(params: PineconeQuery): Promise<PineconeQueryResult> {
