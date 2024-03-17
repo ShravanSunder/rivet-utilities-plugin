@@ -479,8 +479,8 @@ export function createIteratorNode(rivet: typeof Rivet) {
 	const validateInputItem = (
 		item: Record<string, unknown>,
 		graph: NodeGraph,
-		missingKeys: Set<string>,
-		notDataValue: Set<string>
+		missingKeysOut: Set<string>,
+		notDataValueOut: Set<string>
 	) => {
 		let itemKeys = Object.keys(item);
 		if (isObjectDataValue(item)) {
@@ -510,7 +510,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 		if (expectedKeys.some((s) => !itemKeys.includes(s))) {
 			for (const key of expectedKeys) {
 				if (!itemKeys.includes(key)) {
-					missingKeys.add(key);
+					missingKeysOut.add(key);
 				}
 			}
 			return true;
@@ -525,7 +525,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 				/**
 				 * save the key that isn't a DataValue
 				 */
-				notDataValue.add(s as string);
+				notDataValueOut.add(s as string);
 				return true;
 			}
 		});

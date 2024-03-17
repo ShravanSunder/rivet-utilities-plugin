@@ -4,7 +4,9 @@
 	"version": "0.3.5",
 	"type": "module",
 	"main": "dist/bundle.js",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "tsc -b && tsx bundle.ts",
 		"dev": "run-p watch:tsc watch:esbuild:sync",
@@ -15,11 +17,13 @@
 	},
 	"dependencies": {
 		"@ironclad/rivet-core": "^1.15.0",
+		"@pinecone-database/pinecone": "^2.1.0",
 		"@types/crypto-js": "^4.2.2",
 		"crypto-js": "^4.2.0",
 		"lz-string": "^1.5.0",
 		"p-queue": "^8.0.1",
-		"ts-pattern": "^5.0.8"
+		"ts-pattern": "^5.0.8",
+		"zod": "^3.22.4"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.5.3",

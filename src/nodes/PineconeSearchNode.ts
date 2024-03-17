@@ -26,9 +26,10 @@ import type {
 	LooseDataValue,
 	DataValue,
 } from '@ironclad/rivet-core';
-import { PineconeMetadata } from '../helpers/models/PineconeMetadata';
+import { PineconeMetadata, pineconeMetadataSchema } from '../helpers/models/PineconeMetadata';
 import { PineconeVectorDatabase } from '../helpers/PineconeVectorDatabase';
 import { PineconeQuery, PineconeQueryResult } from '../helpers/models/PineconeQuery';
+import { PineconeSparseVector } from '../helpers/models/PineconeSparseVector';
 
 const pineconeSearchIds = {
 	matches: 'matches' as PortId,
@@ -39,6 +40,7 @@ const pineconeSearchIds = {
 	namespace: 'namespace' as PortId,
 	filter: 'filter' as PortId,
 	usage: 'usage' as PortId,
+	sparseVector: 'sparseVector' as PortId,
 } as const;
 
 export type PineconeSearchNode = ChartNode<'pineconeSearchNode', PineconeSearchNodeData>;
@@ -53,6 +55,7 @@ export type PineconeSearchNodeData = {
 	vector: number[];
 	filter: PineconeMetadata;
 	matches: PineconeQueryResult['matches'];
+	sparseVector: PineconeSparseVector;
 };
 
 // The function that defines the plugin node for Vector Nearest Neighbors.
@@ -75,6 +78,10 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					vector: [],
 					filter: {},
 					matches: [],
+					sparseVector: {
+						values: [],
+						indices: [],
+					},
 				},
 			};
 		},
@@ -118,6 +125,13 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 			inputs.push({
 				id: pineconeSearchIds.filter,
 				title: 'Filter',
+				dataType: 'object',
+				required: false,
+			});
+
+			inputs.push({
+				id: pineconeSearchIds.sparseVector,
+				title: 'Sparse Vector',
 				dataType: 'object',
 				required: false,
 			});
@@ -217,8 +231,13 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					? rivet.coerceType(inputData[pineconeSearchIds.namespace], 'string')
 					: data.namespace ?? '';
 				const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], 'vector');
-				const filter = (rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], 'object') ??
-					{}) as PineconeMetadata;
+				const filter = pineconeMetadataSchema.parse(
+					rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], 'object') ?? {}
+				);
+
+				// const sparseVector = PineconeSparseVector.nullable().parse(
+				// 	rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], 'object')
+				// );
 
 				console.log('pinecone', 'got data all', topK);
 

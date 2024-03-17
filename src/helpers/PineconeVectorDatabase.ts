@@ -8,11 +8,34 @@ import type {
 	VectorDatabase,
 	Rivet,
 } from '@ironclad/rivet-core';
-import { PineconeMetadataInputValue } from './models/PineconeMetadata';
+import { pineconeMetadataSchema, PineconeMetadataInputValue, PineconeMetadata } from './models/PineconeMetadata';
 import sha256 from 'crypto-js/sha256';
 import { createDigest } from './createDigest';
 import { PineconeQuery, PineconeQueryResult } from './models/PineconeQuery';
+import { PineconeSparseVector } from './models/PineconeSparseVector';
 
+/**
+ * Retrieves the host from a given Pinecone collection URL.
+ * @param collectionUrlString - The URL of the Pinecone collection.
+ * @returns An object containing the host extracted from the URL.
+ * @throws {Error} If the Pinecone collection URL is incorrectly formatted.
+ */
+const getCollection = (collectionUrlString: string): { host: string } => {
+	let collectionURL: URL;
+
+	try {
+		collectionURL = new URL(collectionUrlString);
+	} catch (error) {
+		throw new Error(`Incorrectly formatted Pinecone collection: ${error}`);
+	}
+
+	const host = `${collectionURL.protocol}//${collectionURL.host}`;
+	return { host };
+};
+
+/**
+ * Class to interact with Pinecone Vector Database.
+ */
 export class PineconeVectorDatabase {
 	readonly #apiKey: string;
 	#rivet;
@@ -22,10 +45,11 @@ export class PineconeVectorDatabase {
 		this.#rivet = rivet;
 	}
 
-	async store(params: {
+	async upsert(params: {
 		collection: DataValue;
 		vector: VectorDataValue;
-		data: PineconeMetadataInputValue;
+		metadata: PineconeMetadata;
+		sparseVector: PineconeSparseVector;
 		namespace: string;
 		id?: string;
 	}): Promise<void> {
@@ -35,13 +59,6 @@ export class PineconeVectorDatabase {
 			params.id = await createDigest(params.vector.value.join(','));
 		}
 
-		let metadata: Record<string, unknown> = {};
-		if (params.data.type === 'object') {
-			metadata = params.data.value;
-		} else {
-			metadata = { data: params.data.value };
-		}
-
 		const response = await fetch(`${collectionDetails.host}/vectors/upsert`, {
 			method: 'POST',
 			body: JSON.stringify({
@@ -49,7 +66,7 @@ export class PineconeVectorDatabase {
 					{
 						id: params.id,
 						values: params.vector.value,
-						metadata,
+						metadata: params.metadata,
 					},
 				],
 			}),
@@ -90,21 +107,35 @@ export class PineconeVectorDatabase {
 		const responseData = (await response.json()) as PineconeQueryResult;
 		return responseData;
 	}
-}
 
-interface CollectionDetails {
-	host: string;
-}
+	/**
+	 * Computes the hybrid score norm by modifying the given vector and sparse vector.
+	 * The vector is modified by multiplying each element by the alpha value,
+	 * while the sparse vector is modified by multiplying each value by (1 - alpha).
+	 * @param vector - The input vector.
+	 * @param sparseVector - The input sparse vector.
+	 * @param alpha - The alpha value between 0 and 1.
+	 * @returns An object containing the modified vector and sparse vector.
+	 * @throws {Error} If the alpha value is not between 0 and 1.
+	 */
+	hybridScoreWeighting(
+		vector: number[],
+		sparseVector: PineconeSparseVector,
+		alpha: number
+	): { vector: number[]; sparseVector: PineconeSparseVector } {
+		if (alpha < 0 || alpha > 1) {
+			throw new Error('Alpha must be between 0 and 1');
+		}
 
-function getCollection(collectionUrlString: string): CollectionDetails {
-	let collectionURL: URL;
+		// Computing the sparse values modified by (1 - alpha)
+		const modifiedSparse: PineconeSparseVector = {
+			indices: sparseVector.indices,
+			values: sparseVector.values.map((v) => v * (1 - alpha)),
+		};
 
-	try {
-		collectionURL = new URL(collectionUrlString);
-	} catch (error) {
-		throw new Error(`Incorrectly formatted Pinecone collection: ${error}`);
+		// Computing the dense values modified by alpha
+		const modifiedVector = vector.map((v) => v * alpha);
+
+		return { vector: modifiedVector, sparseVector: modifiedSparse };
 	}
-
-	const host = `${collectionURL.protocol}//${collectionURL.host}`;
-	return { host };
 }
