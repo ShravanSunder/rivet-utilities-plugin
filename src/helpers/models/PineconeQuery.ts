@@ -10,7 +10,7 @@ const PineconeQueryBase = z.object({
 	includeValues: z.boolean(),
 	includeMetadata: z.boolean(),
 	namespace: z.string(),
-	filter: pineconeMetadataSchema,
+	filter: z.record(z.unknown()),
 });
 
 export const pineconeQueryWithVectorSchema = PineconeQueryBase.extend({

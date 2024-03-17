@@ -30,6 +30,7 @@ import { PineconeMetadata, pineconeMetadataSchema } from '../helpers/models/Pine
 import { PineconeVectorDatabase } from '../helpers/PineconeVectorDatabase';
 import { PineconeQuery, PineconeQueryResult } from '../helpers/models/PineconeQuery';
 import { PineconeSparseVector } from '../helpers/models/PineconeSparseVector';
+import { z } from 'zod';
 
 const pineconeSearchIds = {
 	matches: 'matches' as PortId,
@@ -231,15 +232,12 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					? rivet.coerceType(inputData[pineconeSearchIds.namespace], 'string')
 					: data.namespace ?? '';
 				const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], 'vector');
-				const filter = pineconeMetadataSchema.parse(
-					rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], 'object') ?? {}
+				const filter = z
+					.record(z.unknown())
+					.parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], 'object') ?? {});
+				const sparseVector = PineconeSparseVector.nullish().parse(
+					rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], 'object')
 				);
-
-				// const sparseVector = PineconeSparseVector.nullable().parse(
-				// 	rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], 'object')
-				// );
-
-				console.log('pinecone', 'got data all', topK);
 
 				const db = new PineconeVectorDatabase(rivet, apiKey);
 				const result = await db.query({
@@ -248,6 +246,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					namespace: namespace,
 					vector: vector,
 					filter: filter,
+					// ...(sparseVector ? { sparseVector: sparseVector } : null),
 					includeValues: false,
 					includeMetadata: true,
 				});

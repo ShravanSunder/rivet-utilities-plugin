@@ -8118,6 +8118,97 @@ function createIteratorNode(rivet) {
   return iteratorNode;
 }
 
+// src/helpers/PineconeVectorDatabase.ts
+var getCollection = (collectionUrlString) => {
+  let collectionURL;
+  try {
+    collectionURL = new URL(collectionUrlString);
+  } catch (error) {
+    throw new Error(`Incorrectly formatted Pinecone collection: ${error}`);
+  }
+  const host = `${collectionURL.protocol}//${collectionURL.host}`;
+  return { host };
+};
+var _apiKey, _rivet;
+var PineconeVectorDatabase = class {
+  constructor(rivet, apiKey) {
+    __privateAdd(this, _apiKey, void 0);
+    __privateAdd(this, _rivet, void 0);
+    __privateSet(this, _apiKey, apiKey);
+    __privateSet(this, _rivet, rivet);
+  }
+  async upsert(params) {
+    const collectionDetails = getCollection(__privateGet(this, _rivet).coerceType(params.collection, "string"));
+    if (!params.id) {
+      params.id = await createDigest(params.vector.value.join(","));
+    }
+    const response = await fetch(`${collectionDetails.host}/vectors/upsert`, {
+      method: "POST",
+      body: JSON.stringify({
+        vectors: [
+          {
+            id: params.id,
+            values: params.vector.value,
+            metadata: params.metadata
+          }
+        ]
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": __privateGet(this, _apiKey)
+      }
+    });
+    if (response.status !== 200) {
+      throw new Error(`Pinecone error: ${await response.text()}`);
+    }
+  }
+  async query(params) {
+    const collectionDetails = getCollection(params.collectionUrl);
+    const req = params;
+    console.log("pinecone", req);
+    const response = await fetch(`${collectionDetails.host}/query`, {
+      method: "POST",
+      body: JSON.stringify({
+        ...req
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "Api-Key": __privateGet(this, _apiKey)
+      }
+    });
+    if (response.status !== 200) {
+      throw new Error(`Pinecone error: ${await response.text()}`);
+    }
+    const responseData = await response.json();
+    return responseData;
+  }
+  /**
+   * Computes the hybrid score norm by modifying the given vector and sparse vector.
+   * The vector is modified by multiplying each element by the alpha value,
+   * while the sparse vector is modified by multiplying each value by (1 - alpha).
+   * @param vector - The input vector.
+   * @param sparseVector - The input sparse vector.
+   * @param alpha - The alpha value between 0 and 1.
+   * @returns An object containing the modified vector and sparse vector.
+   * @throws {Error} If the alpha value is not between 0 and 1.
+   */
+  hybridScoreWeighting(vector, sparseVector, alpha) {
+    if (alpha < 0 || alpha > 1) {
+      throw new Error("Alpha must be between 0 and 1");
+    }
+    const modifiedSparse = {
+      indices: sparseVector.indices,
+      values: sparseVector.values.map((v) => v * (1 - alpha))
+    };
+    const modifiedVector = vector.map((v) => v * alpha);
+    return { vector: modifiedVector, sparseVector: modifiedSparse };
+  }
+};
+_apiKey = new WeakMap();
+_rivet = new WeakMap();
+
 // node_modules/.pnpm/zod@3.22.4/node_modules/zod/lib/index.mjs
 var util;
 (function(util2) {
@@ -11851,99 +11942,11 @@ var z = /* @__PURE__ */ Object.freeze({
   ZodError
 });
 
-// src/helpers/models/PineconeMetadata.ts
-var pineconeMetadataSchema = z.record(z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]));
-
-// src/helpers/PineconeVectorDatabase.ts
-var getCollection = (collectionUrlString) => {
-  let collectionURL;
-  try {
-    collectionURL = new URL(collectionUrlString);
-  } catch (error) {
-    throw new Error(`Incorrectly formatted Pinecone collection: ${error}`);
-  }
-  const host = `${collectionURL.protocol}//${collectionURL.host}`;
-  return { host };
-};
-var _apiKey, _rivet;
-var PineconeVectorDatabase = class {
-  constructor(rivet, apiKey) {
-    __privateAdd(this, _apiKey, void 0);
-    __privateAdd(this, _rivet, void 0);
-    __privateSet(this, _apiKey, apiKey);
-    __privateSet(this, _rivet, rivet);
-  }
-  async upsert(params) {
-    const collectionDetails = getCollection(__privateGet(this, _rivet).coerceType(params.collection, "string"));
-    if (!params.id) {
-      params.id = await createDigest(params.vector.value.join(","));
-    }
-    const response = await fetch(`${collectionDetails.host}/vectors/upsert`, {
-      method: "POST",
-      body: JSON.stringify({
-        vectors: [
-          {
-            id: params.id,
-            values: params.vector.value,
-            metadata: params.metadata
-          }
-        ]
-      }),
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "api-key": __privateGet(this, _apiKey)
-      }
-    });
-    if (response.status !== 200) {
-      throw new Error(`Pinecone error: ${await response.text()}`);
-    }
-  }
-  async query(params) {
-    const collectionDetails = getCollection(params.collectionUrl);
-    const req = params;
-    console.log("pinecone", req);
-    const response = await fetch(`${collectionDetails.host}/query`, {
-      method: "POST",
-      body: JSON.stringify({
-        ...req
-      }),
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Api-Key": __privateGet(this, _apiKey)
-      }
-    });
-    if (response.status !== 200) {
-      throw new Error(`Pinecone error: ${await response.text()}`);
-    }
-    const responseData = await response.json();
-    return responseData;
-  }
-  /**
-   * Computes the hybrid score norm by modifying the given vector and sparse vector.
-   * The vector is modified by multiplying each element by the alpha value,
-   * while the sparse vector is modified by multiplying each value by (1 - alpha).
-   * @param vector - The input vector.
-   * @param sparseVector - The input sparse vector.
-   * @param alpha - The alpha value between 0 and 1.
-   * @returns An object containing the modified vector and sparse vector.
-   * @throws {Error} If the alpha value is not between 0 and 1.
-   */
-  hybridScoreWeighting(vector, sparseVector, alpha) {
-    if (alpha < 0 || alpha > 1) {
-      throw new Error("Alpha must be between 0 and 1");
-    }
-    const modifiedSparse = {
-      indices: sparseVector.indices,
-      values: sparseVector.values.map((v) => v * (1 - alpha))
-    };
-    const modifiedVector = vector.map((v) => v * alpha);
-    return { vector: modifiedVector, sparseVector: modifiedSparse };
-  }
-};
-_apiKey = new WeakMap();
-_rivet = new WeakMap();
+// src/helpers/models/PineconeSparseVector.ts
+var PineconeSparseVector = z.object({
+  indices: z.array(z.number()),
+  values: z.array(z.number())
+});
 
 // src/nodes/PineconeSearchNode.ts
 var pineconeSearchIds = {
@@ -12110,10 +12113,10 @@ function createPineconeSearchNode(rivet) {
         const collectionUrl = data.useCollectionUrlInput ? rivet.coerceType(inputData[pineconeSearchIds.collectionUrl], "string") : data.collectionUrl;
         const namespace = data.useNamespaceInput ? rivet.coerceType(inputData[pineconeSearchIds.namespace], "string") : data.namespace ?? "";
         const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], "vector");
-        const filter = pineconeMetadataSchema.parse(
-          rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], "object") ?? {}
+        const filter = z.record(z.unknown()).parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], "object") ?? {});
+        const sparseVector = PineconeSparseVector.nullish().parse(
+          rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], "object")
         );
-        console.log("pinecone", "got data all", topK);
         const db = new PineconeVectorDatabase(rivet, apiKey);
         const result = await db.query({
           collectionUrl,
@@ -12121,6 +12124,7 @@ function createPineconeSearchNode(rivet) {
           namespace,
           vector,
           filter,
+          // ...(sparseVector ? { sparseVector: sparseVector } : null),
           includeValues: false,
           includeMetadata: true
         });
