@@ -15,7 +15,11 @@ The iterator Node will It will map through an array of object inputs `objectData
 
 The node will allow you to query pinecone for vectors.  Allows `filters with metadata`.   It also allows you to get `scores` back from the api.  These are the reason to use this over the default Vector Retreival node in rivet.
 
-# Installation
+### Pinecone Upsert Node
+
+This node will allow
+
+## Installation
 
 See [Rivet Plugins](https://rivet.ironcladapp.com/docs/user-guide/plugins) for more details
 
@@ -35,11 +39,15 @@ Ouputs will be an array of ObjectDataValue `type: `object `, value: {<graph outp
 
 ![1709682622326](image/README/1709682622326.png)
 
+### Using Pinecone Nodes
 
-
-### Using Pinecone Search Node
+Pinecone search node
 
 ![1710344219550](image/README/1710344219550.png)
+
+Pinecone upsert node
+
+![pinecone upsert](image/README/pinecone-upsert.png)
 
 ## Breaking changes
 
