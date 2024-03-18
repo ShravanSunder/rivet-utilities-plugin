@@ -29,7 +29,7 @@ import type {
 import { PineconeMetadata, pineconeMetadataSchema } from '../helpers/models/PineconeMetadata';
 import { PineconeVectorDatabase } from '../helpers/PineconeVectorDatabase';
 import { PineconeQuery, PineconeQueryResult } from '../helpers/models/PineconeQuery';
-import { PineconeSparseVector } from '../helpers/models/PineconeSparseVector';
+import { PineconeSparseVector, pineconeSparseVectorSchema } from '../helpers/models/PineconeSparseVector';
 import { z } from 'zod';
 
 const pineconeSearchIds = {
@@ -53,10 +53,7 @@ export type PineconeSearchNodeData = {
 	useCollectionUrlInput?: boolean;
 	namespace: string;
 	useNamespaceInput?: boolean;
-	vector: number[];
-	filter: Record<string, unknown>;
 	matches: PineconeQueryResult['matches'];
-	sparseVector: PineconeSparseVector;
 };
 
 // The function that defines the plugin node for Vector Nearest Neighbors.
@@ -76,13 +73,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					useTopKInput: false,
 					useCollectionUrlInput: false,
 					namespace: '',
-					vector: [],
-					filter: {},
 					matches: [],
-					sparseVector: {
-						values: [],
-						indices: [],
-					},
 				},
 			};
 		},
@@ -198,12 +189,10 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 		// what the current data of the node is in some way that is useful at a glance.
 		getBody(data: PineconeSearchNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
 			console.log('pinecone', 'outputs body');
-			return rivet.dedent`
-      TopK: ${data.useTopKInput ? '(using input)' : data.topK}
-      Collection Url: ${data.useCollectionUrlInput ? '(using input)' : data.collectionUrl}
-			Namespace: ${data.useNamespaceInput ? '(using input)' : data.namespace ?? ''}
-			Matches: ${data.matches ?? []}
-    `;
+			return rivet.dedent`TopK: ${data.useTopKInput ? '(using input)' : data.topK}
+				Collection Url: ${data.useCollectionUrlInput ? '(using input)' : data.collectionUrl}
+				Namespace: ${data.useNamespaceInput ? '(using input)' : data.namespace ?? ''}
+    	`;
 		},
 
 		async process(data: PineconeSearchNodeData, inputData: Inputs, context: InternalProcessContext): Promise<Outputs> {
@@ -211,17 +200,6 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 			try {
 				const apiKey = context.getPluginConfig('pineconeApiKey');
 				const output: Outputs = {};
-				if (!apiKey) {
-					output[pineconeSearchIds.matches] = {
-						type: 'control-flow-excluded',
-						value: undefined,
-					};
-					output[pineconeSearchIds.error] = {
-						type: 'string',
-						value: 'Missing Pinecone API key',
-					};
-					return output;
-				}
 
 				const topK = data.useTopKInput
 					? rivet.coerceType(inputData[pineconeSearchIds.topK], 'number')
@@ -236,9 +214,21 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				const filter = z
 					.record(z.unknown())
 					.parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], 'object') ?? {});
-				const sparseVector = pineconeMetadataSchema
+				const sparseVector = pineconeSparseVectorSchema
 					.nullish()
 					.parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], 'object'));
+
+				if (!apiKey) {
+					output[pineconeSearchIds.matches] = {
+						type: 'control-flow-excluded',
+						value: undefined,
+					};
+					output[pineconeSearchIds.error] = {
+						type: 'string',
+						value: 'Missing Pinecone API key',
+					};
+					return output;
+				}
 
 				const db = new PineconeVectorDatabase(rivet, apiKey);
 				const result = await db.query({
@@ -247,7 +237,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					namespace: namespace,
 					vector: vector,
 					filter: filter,
-					// ...(sparseVector ? { sparseVector: sparseVector } : null),
+					...(sparseVector ? { sparseVector: sparseVector } : null),
 					includeValues: false,
 					includeMetadata: true,
 				});

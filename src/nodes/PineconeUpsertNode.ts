@@ -31,7 +31,7 @@ import { PineconeVectorDatabase } from '../helpers/PineconeVectorDatabase';
 import { PineconeQuery, PineconeQueryResult } from '../helpers/models/PineconeQuery';
 import { PineconeSparseVector, pineconeSparseVectorSchema } from '../helpers/models/PineconeSparseVector';
 import { ZodError, z } from 'zod';
-import { PineconeUpsertRequest } from '../helpers/models/PineconeUpsert';
+import { PineconeUpsertRequest, pineconeUpsertRequestSchema } from '../helpers/models/PineconeUpsert';
 
 const pineconeUpsertIds = {
 	error: 'error' as PortId,
@@ -40,9 +40,10 @@ const pineconeUpsertIds = {
 	namespace: 'namespace' as PortId,
 	metadata: 'metadata' as PortId,
 	sparseVector: 'sparseVector' as PortId,
-	id: 'id' as PortId,
 	ok: 'ok' as PortId,
-	arrayPayload: 'arrayPayload' as PortId,
+	response: 'response' as PortId,
+	id: 'id' as PortId,
+	vectorArray: 'vectorArray' as PortId,
 } as const;
 
 export type PineconeUpsertNode = ChartNode<'pineconeUpsertNode', PineconeUpsertNodeData>;
@@ -52,13 +53,8 @@ export type PineconeUpsertNodeData = {
 	useCollectionUrlInput?: boolean;
 	namespace: string;
 	useNamespaceInput?: boolean;
-	useArrayPayload?: boolean;
-	arrayPayload: PineconeUpsertRequest['vectors'];
-	vector: number[];
-	metadata: PineconeMetadata;
-	sparseVector: PineconeSparseVector;
+	useVectorArray?: boolean;
 	ok: boolean;
-	id: string;
 };
 
 // The function that defines the plugin node for Vector Nearest Neighbors.
@@ -76,16 +72,8 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 					ok: false,
 					collectionUrl: '',
 					useCollectionUrlInput: false,
-					useArrayPayload: false,
+					useVectorArray: false,
 					namespace: '',
-					arrayPayload: [],
-					id: '',
-					vector: [],
-					metadata: {},
-					sparseVector: {
-						values: [],
-						indices: [],
-					},
 				},
 			};
 		},
@@ -111,7 +99,13 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 				});
 			}
 
-			if (data.useArrayPayload) {
+			if (data.useVectorArray) {
+				inputs.push({
+					id: pineconeUpsertIds.vectorArray,
+					title: 'Vector Array',
+					dataType: 'object[]',
+					required: true,
+				});
 			} else {
 				inputs.push({
 					id: pineconeUpsertIds.id,
@@ -185,8 +179,8 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 				},
 				{
 					type: 'toggle',
-					dataKey: 'useArrayPayload',
-					label: 'Use Array Payload',
+					dataKey: 'useVectorArray',
+					label: 'Use Array Vector Payload',
 					helperMessage: 'Upsert an array of vectors instead of a single vector',
 				},
 			];
@@ -195,12 +189,9 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 		// what the current data of the node is in some way that is useful at a glance.
 		getBody(data: PineconeUpsertNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
 			console.log('pinecone', 'outputs body');
-			return rivet.dedent`
-      Collection Url: ${data.useCollectionUrlInput ? '(using input)' : data.collectionUrl}
-			Namespace: ${data.useNamespaceInput ? '(using input)' : data.namespace ?? ''}
-			Metadata: ${data.metadata ?? []}
-			id: ${data.id}
-    `;
+			return rivet.dedent`Collection Url: ${data.useCollectionUrlInput ? '(using input)' : data.collectionUrl}
+				Namespace: ${data.useNamespaceInput ? '(using input)' : data.namespace ?? ''}
+			`;
 		},
 
 		async process(data: PineconeUpsertNodeData, inputData: Inputs, context: InternalProcessContext): Promise<Outputs> {
@@ -208,6 +199,14 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 			try {
 				const apiKey = context.getPluginConfig('pineconeApiKey');
 				const output: Outputs = {};
+
+				const collectionUrl = data.useCollectionUrlInput
+					? rivet.coerceType(inputData[pineconeUpsertIds.collectionUrl], 'string')
+					: data.collectionUrl;
+				const namespace = data.useNamespaceInput
+					? rivet.coerceType(inputData[pineconeUpsertIds.namespace], 'string')
+					: data.namespace ?? '';
+
 				if (!apiKey) {
 					output[pineconeUpsertIds.ok] = {
 						type: 'control-flow-excluded',
@@ -219,30 +218,35 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 					};
 					return output;
 				}
+				const db = new PineconeVectorDatabase(rivet, apiKey);
 
-				const collectionUrl = data.useCollectionUrlInput
-					? rivet.coerceType(inputData[pineconeUpsertIds.collectionUrl], 'string')
-					: data.collectionUrl;
-				const namespace = data.useNamespaceInput
-					? rivet.coerceType(inputData[pineconeUpsertIds.namespace], 'string')
-					: data.namespace ?? '';
+				if (data.useVectorArray) {
+					/**
+					 * If the node is configured to use an array payload, we expect the input to be an array of PineconeUpsertRequest
+					 */
+					const vectorArray = pineconeUpsertRequestSchema.shape.vectors.parse(
+						rivet.coerceType(inputData[pineconeUpsertIds.vectorArray], 'object[]')
+					);
 
-				if (data.useArrayPayload) {
-					const db = new PineconeVectorDatabase(rivet, apiKey);
 					const result = await db.upsert({
 						collectionUrl: collectionUrl,
 						namespace: namespace,
-						vectors: data.arrayPayload,
+						vectors: vectorArray,
 					});
 
 					output[pineconeUpsertIds.ok] = {
 						type: 'boolean',
 						value: result,
 					};
+					output[pineconeUpsertIds.response] = {
+						type: 'string',
+						value: result ? 'Upsert successful' : 'Upsert failed',
+					};
 
 					return output;
 				}
 
+				const id = rivet.coerceType(inputData[pineconeUpsertIds.id], 'string');
 				const vector = rivet.coerceType(inputData[pineconeUpsertIds.vector], 'vector');
 				const metadata = pineconeMetadataSchema.parse(
 					rivet.coerceTypeOptional(inputData[pineconeUpsertIds.metadata], 'object') ?? {}
@@ -250,14 +254,12 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 				const sparseVector = pineconeSparseVectorSchema
 					.nullish()
 					.parse(rivet.coerceTypeOptional(inputData[pineconeUpsertIds.sparseVector], 'object'));
-
-				const db = new PineconeVectorDatabase(rivet, apiKey);
 				const result = await db.upsert({
 					collectionUrl: collectionUrl,
 					namespace: namespace,
 					vectors: [
 						{
-							id: data.id,
+							id,
 							metadata: metadata,
 							values: vector,
 							...(sparseVector ? { sparseValues: sparseVector } : null),
@@ -268,6 +270,10 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 				output[pineconeUpsertIds.ok] = {
 					type: 'boolean',
 					value: result,
+				};
+				output[pineconeUpsertIds.response] = {
+					type: 'string',
+					value: result ? 'Upsert array successful' : 'Upsert array failed',
 				};
 
 				return output;

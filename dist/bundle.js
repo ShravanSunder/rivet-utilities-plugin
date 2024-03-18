@@ -7891,9 +7891,9 @@ function createIteratorNode(rivet) {
     // This function returns the body of the node when it is rendered on the graph. You should show
     // what the current data of the node is in some way that is useful at a glance.
     getBody(data) {
-      return rivet.dedent`
-        Iterator Node
-        IteratorOutputs: ${data.iteratorOutputs ?? []}
+      return rivet.dedent`Iterator Node
+				Chunk Size: ${data.chunkSize}
+				Has Cache: ${data.hasCache}
       `;
     },
     // This is the main processing function for your node. It can do whatever you like, but it must return
@@ -8117,6 +8117,95 @@ function createIteratorNode(rivet) {
   const iteratorNode = rivet.pluginNodeDefinition(IteratorNodeImpl, "Iterator Node");
   return iteratorNode;
 }
+
+// src/helpers/PineconeVectorDatabase.ts
+var getCollection = (collectionUrlString) => {
+  let collectionURL;
+  try {
+    collectionURL = new URL(collectionUrlString);
+  } catch (error) {
+    throw new Error(`Incorrectly formatted Pinecone collection: ${error}`);
+  }
+  const host = `${collectionURL.protocol}//${collectionURL.host}`;
+  return { host };
+};
+var _apiKey, _rivet;
+var PineconeVectorDatabase = class {
+  constructor(rivet, apiKey) {
+    __privateAdd(this, _apiKey, void 0);
+    __privateAdd(this, _rivet, void 0);
+    __privateSet(this, _apiKey, apiKey);
+    __privateSet(this, _rivet, rivet);
+  }
+  async upsert(params) {
+    const collectionDetails = getCollection(params.collectionUrl);
+    const vectors = params.vectors.map((v) => {
+      return {
+        ...v
+      };
+    });
+    const response = await fetch(`${collectionDetails.host}/vectors/upsert`, {
+      method: "POST",
+      body: JSON.stringify({
+        vectors,
+        namespace: params.namespace
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": __privateGet(this, _apiKey)
+      }
+    });
+    if (response.status !== 200) {
+      throw new Error(`Pinecone error: ${await response.text()}`);
+    }
+    return true;
+  }
+  async query(params) {
+    const collectionDetails = getCollection(params.collectionUrl);
+    const req = params;
+    console.log("pinecone", req);
+    const response = await fetch(`${collectionDetails.host}/query`, {
+      method: "POST",
+      body: JSON.stringify({
+        ...req
+      }),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "Api-Key": __privateGet(this, _apiKey)
+      }
+    });
+    if (response.status !== 200) {
+      throw new Error(`Pinecone error: ${await response.text()}`);
+    }
+    const responseData = await response.json();
+    return responseData;
+  }
+  /**
+   * Computes the hybrid score norm by modifying the given vector and sparse vector.
+   * The vector is modified by multiplying each element by the alpha value,
+   * while the sparse vector is modified by multiplying each value by (1 - alpha).
+   * @param vector - The input vector.
+   * @param sparseVector - The input sparse vector.
+   * @param alpha - The alpha value between 0 and 1.
+   * @returns An object containing the modified vector and sparse vector.
+   * @throws {Error} If the alpha value is not between 0 and 1.
+   */
+  hybridScoreWeighting(vector, sparseVector, alpha) {
+    if (alpha < 0 || alpha > 1) {
+      throw new Error("Alpha must be between 0 and 1");
+    }
+    const modifiedSparse = {
+      indices: sparseVector.indices,
+      values: sparseVector.values.map((v) => v * (1 - alpha))
+    };
+    const modifiedVector = vector.map((v) => v * alpha);
+    return { vector: modifiedVector, sparseVector: modifiedSparse };
+  }
+};
+_apiKey = new WeakMap();
+_rivet = new WeakMap();
 
 // node_modules/.pnpm/zod@3.22.4/node_modules/zod/lib/index.mjs
 var util;
@@ -11851,97 +11940,11 @@ var z = /* @__PURE__ */ Object.freeze({
   ZodError
 });
 
-// src/helpers/models/PineconeMetadata.ts
-var pineconeMetadataSchema = z.record(z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]));
-
-// src/helpers/PineconeVectorDatabase.ts
-var getCollection = (collectionUrlString) => {
-  let collectionURL;
-  try {
-    collectionURL = new URL(collectionUrlString);
-  } catch (error) {
-    throw new Error(`Incorrectly formatted Pinecone collection: ${error}`);
-  }
-  const host = `${collectionURL.protocol}//${collectionURL.host}`;
-  return { host };
-};
-var _apiKey, _rivet;
-var PineconeVectorDatabase = class {
-  constructor(rivet, apiKey) {
-    __privateAdd(this, _apiKey, void 0);
-    __privateAdd(this, _rivet, void 0);
-    __privateSet(this, _apiKey, apiKey);
-    __privateSet(this, _rivet, rivet);
-  }
-  async upsert(params) {
-    const collectionDetails = getCollection(params.collectionUrl);
-    const vectors = params.vectors.map((v) => {
-      return {
-        ...v
-      };
-    });
-    const response = await fetch(`${collectionDetails.host}/vectors/upsert`, {
-      method: "POST",
-      body: JSON.stringify({
-        vectors,
-        namespace: params.namespace
-      }),
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "api-key": __privateGet(this, _apiKey)
-      }
-    });
-    if (response.status !== 200) {
-      throw new Error(`Pinecone error: ${await response.text()}`);
-    }
-    return true;
-  }
-  async query(params) {
-    const collectionDetails = getCollection(params.collectionUrl);
-    const req = params;
-    console.log("pinecone", req);
-    const response = await fetch(`${collectionDetails.host}/query`, {
-      method: "POST",
-      body: JSON.stringify({
-        ...req
-      }),
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Api-Key": __privateGet(this, _apiKey)
-      }
-    });
-    if (response.status !== 200) {
-      throw new Error(`Pinecone error: ${await response.text()}`);
-    }
-    const responseData = await response.json();
-    return responseData;
-  }
-  /**
-   * Computes the hybrid score norm by modifying the given vector and sparse vector.
-   * The vector is modified by multiplying each element by the alpha value,
-   * while the sparse vector is modified by multiplying each value by (1 - alpha).
-   * @param vector - The input vector.
-   * @param sparseVector - The input sparse vector.
-   * @param alpha - The alpha value between 0 and 1.
-   * @returns An object containing the modified vector and sparse vector.
-   * @throws {Error} If the alpha value is not between 0 and 1.
-   */
-  hybridScoreWeighting(vector, sparseVector, alpha) {
-    if (alpha < 0 || alpha > 1) {
-      throw new Error("Alpha must be between 0 and 1");
-    }
-    const modifiedSparse = {
-      indices: sparseVector.indices,
-      values: sparseVector.values.map((v) => v * (1 - alpha))
-    };
-    const modifiedVector = vector.map((v) => v * alpha);
-    return { vector: modifiedVector, sparseVector: modifiedSparse };
-  }
-};
-_apiKey = new WeakMap();
-_rivet = new WeakMap();
+// src/helpers/models/PineconeSparseVector.ts
+var pineconeSparseVectorSchema = z.object({
+  indices: z.array(z.number()),
+  values: z.array(z.number())
+});
 
 // src/nodes/PineconeSearchNode.ts
 var pineconeSearchIds = {
@@ -11970,13 +11973,7 @@ function createPineconeSearchNode(rivet) {
           useTopKInput: false,
           useCollectionUrlInput: false,
           namespace: "",
-          vector: [],
-          filter: {},
-          matches: [],
-          sparseVector: {
-            values: [],
-            indices: []
-          }
+          matches: []
         }
       };
     },
@@ -12081,18 +12078,22 @@ function createPineconeSearchNode(rivet) {
     // what the current data of the node is in some way that is useful at a glance.
     getBody(data) {
       console.log("pinecone", "outputs body");
-      return rivet.dedent`
-      TopK: ${data.useTopKInput ? "(using input)" : data.topK}
-      Collection Url: ${data.useCollectionUrlInput ? "(using input)" : data.collectionUrl}
-			Namespace: ${data.useNamespaceInput ? "(using input)" : data.namespace ?? ""}
-			Matches: ${data.matches ?? []}
-    `;
+      return rivet.dedent`TopK: ${data.useTopKInput ? "(using input)" : data.topK}
+				Collection Url: ${data.useCollectionUrlInput ? "(using input)" : data.collectionUrl}
+				Namespace: ${data.useNamespaceInput ? "(using input)" : data.namespace ?? ""}
+    	`;
     },
     async process(data, inputData, context) {
       console.log("pinecone", "process");
       try {
         const apiKey = context.getPluginConfig("pineconeApiKey");
         const output = {};
+        const topK = data.useTopKInput ? rivet.coerceType(inputData[pineconeSearchIds.topK], "number") : data.topK ?? 10;
+        const collectionUrl = data.useCollectionUrlInput ? rivet.coerceType(inputData[pineconeSearchIds.collectionUrl], "string") : data.collectionUrl;
+        const namespace = data.useNamespaceInput ? rivet.coerceType(inputData[pineconeSearchIds.namespace], "string") : data.namespace ?? "";
+        const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], "vector");
+        const filter = z.record(z.unknown()).parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], "object") ?? {});
+        const sparseVector = pineconeSparseVectorSchema.nullish().parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], "object"));
         if (!apiKey) {
           output[pineconeSearchIds.matches] = {
             type: "control-flow-excluded",
@@ -12104,12 +12105,6 @@ function createPineconeSearchNode(rivet) {
           };
           return output;
         }
-        const topK = data.useTopKInput ? rivet.coerceType(inputData[pineconeSearchIds.topK], "number") : data.topK ?? 10;
-        const collectionUrl = data.useCollectionUrlInput ? rivet.coerceType(inputData[pineconeSearchIds.collectionUrl], "string") : data.collectionUrl;
-        const namespace = data.useNamespaceInput ? rivet.coerceType(inputData[pineconeSearchIds.namespace], "string") : data.namespace ?? "";
-        const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], "vector");
-        const filter = z.record(z.unknown()).parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], "object") ?? {});
-        const sparseVector = pineconeMetadataSchema.nullish().parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], "object"));
         const db = new PineconeVectorDatabase(rivet, apiKey);
         const result = await db.query({
           collectionUrl,
@@ -12117,7 +12112,7 @@ function createPineconeSearchNode(rivet) {
           namespace,
           vector,
           filter,
-          // ...(sparseVector ? { sparseVector: sparseVector } : null),
+          ...sparseVector ? { sparseVector } : null,
           includeValues: false,
           includeMetadata: true
         });
@@ -12147,10 +12142,20 @@ function createPineconeSearchNode(rivet) {
   return rivet.pluginNodeDefinition(PineconeSearchNodeImpl, "Pinecone Search Node");
 }
 
-// src/helpers/models/PineconeSparseVector.ts
-var pineconeSparseVectorSchema = z.object({
-  indices: z.array(z.number()),
-  values: z.array(z.number())
+// src/helpers/models/PineconeMetadata.ts
+var pineconeMetadataSchema = z.record(z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]));
+
+// src/helpers/models/PineconeUpsert.ts
+var pineconeVectorPayload = z.object({
+  id: z.string(),
+  metadata: pineconeMetadataSchema.optional(),
+  values: z.array(z.number()),
+  sparseValues: pineconeSparseVectorSchema.optional()
+});
+var pineconeUpsertRequestSchema = z.object({
+  vectors: pineconeVectorPayload.array(),
+  namespace: z.string(),
+  collectionUrl: z.string()
 });
 
 // src/nodes/PineconeUpsertNode.ts
@@ -12161,9 +12166,10 @@ var pineconeUpsertIds = {
   namespace: "namespace",
   metadata: "metadata",
   sparseVector: "sparseVector",
-  id: "id",
   ok: "ok",
-  arrayPayload: "arrayPayload"
+  response: "response",
+  id: "id",
+  vectorArray: "vectorArray"
 };
 function createPineconeUpsertNode(rivet) {
   const PineconeUpsertNodeImpl = {
@@ -12178,16 +12184,8 @@ function createPineconeUpsertNode(rivet) {
           ok: false,
           collectionUrl: "",
           useCollectionUrlInput: false,
-          useArrayPayload: false,
-          namespace: "",
-          arrayPayload: [],
-          id: "",
-          vector: [],
-          metadata: {},
-          sparseVector: {
-            values: [],
-            indices: []
-          }
+          useVectorArray: false,
+          namespace: ""
         }
       };
     },
@@ -12209,7 +12207,13 @@ function createPineconeUpsertNode(rivet) {
           required: true
         });
       }
-      if (data.useArrayPayload) {
+      if (data.useVectorArray) {
+        inputs.push({
+          id: pineconeUpsertIds.vectorArray,
+          title: "Vector Array",
+          dataType: "object[]",
+          required: true
+        });
       } else {
         inputs.push({
           id: pineconeUpsertIds.id,
@@ -12276,8 +12280,8 @@ function createPineconeUpsertNode(rivet) {
         },
         {
           type: "toggle",
-          dataKey: "useArrayPayload",
-          label: "Use Array Payload",
+          dataKey: "useVectorArray",
+          label: "Use Array Vector Payload",
           helperMessage: "Upsert an array of vectors instead of a single vector"
         }
       ];
@@ -12286,18 +12290,17 @@ function createPineconeUpsertNode(rivet) {
     // what the current data of the node is in some way that is useful at a glance.
     getBody(data) {
       console.log("pinecone", "outputs body");
-      return rivet.dedent`
-      Collection Url: ${data.useCollectionUrlInput ? "(using input)" : data.collectionUrl}
-			Namespace: ${data.useNamespaceInput ? "(using input)" : data.namespace ?? ""}
-			Metadata: ${data.metadata ?? []}
-			id: ${data.id}
-    `;
+      return rivet.dedent`Collection Url: ${data.useCollectionUrlInput ? "(using input)" : data.collectionUrl}
+				Namespace: ${data.useNamespaceInput ? "(using input)" : data.namespace ?? ""}
+			`;
     },
     async process(data, inputData, context) {
       console.log("pinecone", "process");
       try {
         const apiKey = context.getPluginConfig("pineconeApiKey");
         const output = {};
+        const collectionUrl = data.useCollectionUrlInput ? rivet.coerceType(inputData[pineconeUpsertIds.collectionUrl], "string") : data.collectionUrl;
+        const namespace = data.useNamespaceInput ? rivet.coerceType(inputData[pineconeUpsertIds.namespace], "string") : data.namespace ?? "";
         if (!apiKey) {
           output[pineconeUpsertIds.ok] = {
             type: "control-flow-excluded",
@@ -12309,33 +12312,38 @@ function createPineconeUpsertNode(rivet) {
           };
           return output;
         }
-        const collectionUrl = data.useCollectionUrlInput ? rivet.coerceType(inputData[pineconeUpsertIds.collectionUrl], "string") : data.collectionUrl;
-        const namespace = data.useNamespaceInput ? rivet.coerceType(inputData[pineconeUpsertIds.namespace], "string") : data.namespace ?? "";
-        if (data.useArrayPayload) {
-          const db2 = new PineconeVectorDatabase(rivet, apiKey);
-          const result2 = await db2.upsert({
+        const db = new PineconeVectorDatabase(rivet, apiKey);
+        if (data.useVectorArray) {
+          const vectorArray = pineconeUpsertRequestSchema.shape.vectors.parse(
+            rivet.coerceType(inputData[pineconeUpsertIds.vectorArray], "object[]")
+          );
+          const result2 = await db.upsert({
             collectionUrl,
             namespace,
-            vectors: data.arrayPayload
+            vectors: vectorArray
           });
           output[pineconeUpsertIds.ok] = {
             type: "boolean",
             value: result2
           };
+          output[pineconeUpsertIds.response] = {
+            type: "string",
+            value: result2 ? "Upsert successful" : "Upsert failed"
+          };
           return output;
         }
+        const id = rivet.coerceType(inputData[pineconeUpsertIds.id], "string");
         const vector = rivet.coerceType(inputData[pineconeUpsertIds.vector], "vector");
         const metadata = pineconeMetadataSchema.parse(
           rivet.coerceTypeOptional(inputData[pineconeUpsertIds.metadata], "object") ?? {}
         );
         const sparseVector = pineconeSparseVectorSchema.nullish().parse(rivet.coerceTypeOptional(inputData[pineconeUpsertIds.sparseVector], "object"));
-        const db = new PineconeVectorDatabase(rivet, apiKey);
         const result = await db.upsert({
           collectionUrl,
           namespace,
           vectors: [
             {
-              id: data.id,
+              id,
               metadata,
               values: vector,
               ...sparseVector ? { sparseValues: sparseVector } : null
@@ -12345,6 +12353,10 @@ function createPineconeUpsertNode(rivet) {
         output[pineconeUpsertIds.ok] = {
           type: "boolean",
           value: result
+        };
+        output[pineconeUpsertIds.response] = {
+          type: "string",
+          value: result ? "Upsert array successful" : "Upsert array failed"
         };
         return output;
       } catch (cause) {

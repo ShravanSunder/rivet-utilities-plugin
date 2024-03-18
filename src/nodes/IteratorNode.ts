@@ -216,9 +216,9 @@ export function createIteratorNode(rivet: typeof Rivet) {
 		// This function returns the body of the node when it is rendered on the graph. You should show
 		// what the current data of the node is in some way that is useful at a glance.
 		getBody(data: IteratorNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
-			return rivet.dedent`
-        Iterator Node
-        IteratorOutputs: ${data.iteratorOutputs ?? []}
+			return rivet.dedent`Iterator Node
+				Chunk Size: ${data.chunkSize}
+				Has Cache: ${data.hasCache}
       `;
 		},
 
