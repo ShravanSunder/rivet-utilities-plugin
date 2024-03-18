@@ -18,6 +18,8 @@ export type CacheStorage = {
  */
 const cacheNamespaceMap: Map<string, CacheStorage> = new Map();
 
+const DEBUG_CACHE = false;
+
 /**
  * Invalidates the cache if the digest has changed.
  * @param cacheStorage - The cache storage object.
@@ -25,11 +27,12 @@ const cacheNamespaceMap: Map<string, CacheStorage> = new Map();
  */
 export const invalideCacheIfChanges = (cacheStorage: CacheStorage, digest: string) => {
 	if (cacheStorage.revalidationDigest !== digest) {
-		console.log('iterator', 'invalidate cache', {
-			cacheStorage,
-			digest,
-			cacheNamespaceMap,
-		});
+		if (DEBUG_CACHE)
+			console.log('iterator', 'invalidate cache', {
+				cacheStorage,
+				digest,
+				cacheNamespaceMap,
+			});
 		cacheStorage.cache.clear();
 		cacheStorage.revalidationDigest = digest;
 	}
@@ -43,10 +46,11 @@ export const cleanExpiredCache = async (): Promise<void> => {
 	const now = Date.now();
 	cacheNamespaceMap.forEach((value, key) => {
 		if (value.expiryTimestamp < now) {
-			console.log('iterator', 'delete cache', {
-				key,
-				value,
-			});
+			if (DEBUG_CACHE)
+				console.log('iterator', 'delete cache', {
+					key,
+					value,
+				});
 			cacheNamespaceMap.delete(key);
 		}
 	});
@@ -66,7 +70,7 @@ export const getCacheStorageForNamespace = (namespace: string, revalidationDiges
 	if (!cacheStorage) {
 		cacheStorage = {
 			cache: new Map<string, string>(),
-			expiryTimestamp: Date.now() + 1 * 60 * 60 * 1000 /** 1 hour */,
+			expiryTimestamp: Date.now() + 3 * 60 * 60 * 1000 /** 3 hours */,
 			revalidationDigest,
 		};
 		cacheNamespaceMap.set(namespace, cacheStorage);
@@ -80,11 +84,12 @@ export const getCachedItem = async <T extends Record<string, unknown>>(
 	cacheKey: string
 ): Promise<T | null> => {
 	const cachedOutputCompressed = cacheStorage.cache.get(cacheKey);
-	console.log('iterator', 'get cache', {
-		cacheKey,
-		cachedOutputCompressed,
-		cacheNamespaceMap,
-	});
+	if (DEBUG_CACHE)
+		console.log('iterator', 'get cache', {
+			cacheKey,
+			cachedOutputCompressed,
+			cacheNamespaceMap,
+		});
 
 	return cachedOutputCompressed ? decompressObject<T>(cachedOutputCompressed) : null;
 };
@@ -96,11 +101,12 @@ export const setCachedItem = async <T extends Record<string, unknown>>(
 ): Promise<void> => {
 	const compressedOutput = compressObject(item);
 	cacheStorage.cache.set(cacheKey, compressedOutput);
-	console.log('iterator', 'set cache', {
-		cacheKey,
-		compressedOutput,
-		cacheNamespaceMap,
-	});
+	if (DEBUG_CACHE)
+		console.log('iterator', 'set cache', {
+			cacheKey,
+			compressedOutput,
+			cacheNamespaceMap,
+		});
 };
 
 /**

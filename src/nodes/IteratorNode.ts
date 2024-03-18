@@ -259,7 +259,6 @@ export function createIteratorNode(rivet: typeof Rivet) {
 			 * cache storage
 			 */
 			const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
-			console.log('iterator', 'cacheStorage.cache', cacheStorage.cache);
 			invalideCacheIfChanges(cacheStorage, revalidationDigest);
 
 			// validate input items to make sure they have all  keys of the  graph's input ports
@@ -268,7 +267,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 			const invalidInputs = iteratorInputs.some((item) => {
 				return validateGraphInputItem(rivet, item, graph, missingKeys, notDataValue);
 			});
-			// console.log("iterator", "invalidInputs", { invalidInputs });
+
 			if (invalidInputs) {
 				outputs[iteratorConnectionIds.iteratorOutputs] = {
 					type: 'control-flow-excluded',
@@ -321,13 +320,10 @@ export function createIteratorNode(rivet: typeof Rivet) {
 
 							if (enableCache) {
 								const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
-								console.log('iterator', 'key', {
-									json: JSON.stringify(iteratorInputData),
-									cacheKey,
-								});
 								const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 
 								if (cachedValue != null) {
+									console.log('Iterator: Using cached value');
 									return cachedValue;
 								}
 							}
