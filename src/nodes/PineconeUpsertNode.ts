@@ -26,12 +26,12 @@ import type {
 	LooseDataValue,
 	DataValue,
 } from '@ironclad/rivet-core';
-import { PineconeMetadata, pineconeMetadataSchema } from '../helpers/models/PineconeMetadata';
-import { PineconeVectorDatabase } from '../helpers/PineconeVectorDatabase';
-import { PineconeQuery, PineconeQueryResult } from '../helpers/models/PineconeQuery';
-import { PineconeSparseVector, pineconeSparseVectorSchema } from '../helpers/models/PineconeSparseVector';
+import { PineconeMetadata, pineconeMetadataSchema } from '../helpers/models/PineconeMetadata.js';
+import { PineconeVectorDatabase } from '../helpers/PineconeVectorDatabase.js';
+import { PineconeQuery, PineconeQueryResult } from '../helpers/models/PineconeQuery.js';
+import { PineconeSparseVector, pineconeSparseVectorSchema } from '../helpers/models/PineconeSparseVector.js';
 import { ZodError, z } from 'zod';
-import { PineconeUpsertRequest, pineconeUpsertRequestSchema } from '../helpers/models/PineconeUpsert';
+import { PineconeUpsertRequest, pineconeUpsertRequestSchema } from '../helpers/models/PineconeUpsert.js';
 
 const pineconeUpsertIds = {
 	error: 'error' as PortId,
@@ -144,7 +144,7 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 			return [
 				{
 					id: pineconeUpsertIds.ok,
-					title: 'Ok',
+					title: 'ok',
 					dataType: 'boolean',
 				},
 			];

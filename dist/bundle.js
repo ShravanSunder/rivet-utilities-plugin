@@ -7266,858 +7266,6 @@ var require_lz_string = __commonJS({
   }
 });
 
-// node_modules/.pnpm/eventemitter3@5.0.1/node_modules/eventemitter3/index.mjs
-var import_index = __toESM(require_eventemitter3(), 1);
-
-// node_modules/.pnpm/p-timeout@6.1.2/node_modules/p-timeout/index.js
-var TimeoutError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "TimeoutError";
-  }
-};
-var AbortError = class extends Error {
-  constructor(message) {
-    super();
-    this.name = "AbortError";
-    this.message = message;
-  }
-};
-var getDOMException = (errorMessage) => globalThis.DOMException === void 0 ? new AbortError(errorMessage) : new DOMException(errorMessage);
-var getAbortedReason = (signal) => {
-  const reason = signal.reason === void 0 ? getDOMException("This operation was aborted.") : signal.reason;
-  return reason instanceof Error ? reason : getDOMException(reason);
-};
-function pTimeout(promise, options) {
-  const {
-    milliseconds,
-    fallback,
-    message,
-    customTimers = { setTimeout, clearTimeout }
-  } = options;
-  let timer;
-  const wrappedPromise = new Promise((resolve, reject) => {
-    if (typeof milliseconds !== "number" || Math.sign(milliseconds) !== 1) {
-      throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${milliseconds}\``);
-    }
-    if (options.signal) {
-      const { signal } = options;
-      if (signal.aborted) {
-        reject(getAbortedReason(signal));
-      }
-      signal.addEventListener("abort", () => {
-        reject(getAbortedReason(signal));
-      });
-    }
-    if (milliseconds === Number.POSITIVE_INFINITY) {
-      promise.then(resolve, reject);
-      return;
-    }
-    const timeoutError = new TimeoutError();
-    timer = customTimers.setTimeout.call(void 0, () => {
-      if (fallback) {
-        try {
-          resolve(fallback());
-        } catch (error) {
-          reject(error);
-        }
-        return;
-      }
-      if (typeof promise.cancel === "function") {
-        promise.cancel();
-      }
-      if (message === false) {
-        resolve();
-      } else if (message instanceof Error) {
-        reject(message);
-      } else {
-        timeoutError.message = message ?? `Promise timed out after ${milliseconds} milliseconds`;
-        reject(timeoutError);
-      }
-    }, milliseconds);
-    (async () => {
-      try {
-        resolve(await promise);
-      } catch (error) {
-        reject(error);
-      }
-    })();
-  });
-  const cancelablePromise = wrappedPromise.finally(() => {
-    cancelablePromise.clear();
-  });
-  cancelablePromise.clear = () => {
-    customTimers.clearTimeout.call(void 0, timer);
-    timer = void 0;
-  };
-  return cancelablePromise;
-}
-
-// node_modules/.pnpm/p-queue@8.0.1/node_modules/p-queue/dist/lower-bound.js
-function lowerBound(array, value, comparator) {
-  let first = 0;
-  let count = array.length;
-  while (count > 0) {
-    const step = Math.trunc(count / 2);
-    let it = first + step;
-    if (comparator(array[it], value) <= 0) {
-      first = ++it;
-      count -= step + 1;
-    } else {
-      count = step;
-    }
-  }
-  return first;
-}
-
-// node_modules/.pnpm/p-queue@8.0.1/node_modules/p-queue/dist/priority-queue.js
-var _queue;
-var PriorityQueue = class {
-  constructor() {
-    __privateAdd(this, _queue, []);
-  }
-  enqueue(run, options) {
-    options = {
-      priority: 0,
-      ...options
-    };
-    const element = {
-      priority: options.priority,
-      run
-    };
-    if (this.size && __privateGet(this, _queue)[this.size - 1].priority >= options.priority) {
-      __privateGet(this, _queue).push(element);
-      return;
-    }
-    const index = lowerBound(__privateGet(this, _queue), element, (a, b) => b.priority - a.priority);
-    __privateGet(this, _queue).splice(index, 0, element);
-  }
-  dequeue() {
-    const item = __privateGet(this, _queue).shift();
-    return item?.run;
-  }
-  filter(options) {
-    return __privateGet(this, _queue).filter((element) => element.priority === options.priority).map((element) => element.run);
-  }
-  get size() {
-    return __privateGet(this, _queue).length;
-  }
-};
-_queue = new WeakMap();
-
-// node_modules/.pnpm/p-queue@8.0.1/node_modules/p-queue/dist/index.js
-var _carryoverConcurrencyCount, _isIntervalIgnored, _intervalCount, _intervalCap, _interval, _intervalEnd, _intervalId, _timeoutId, _queue2, _queueClass, _pending, _concurrency, _isPaused, _throwOnTimeout, _doesIntervalAllowAnother, doesIntervalAllowAnother_get, _doesConcurrentAllowAnother, doesConcurrentAllowAnother_get, _next, next_fn, _onResumeInterval, onResumeInterval_fn, _isIntervalPaused, isIntervalPaused_get, _tryToStartAnother, tryToStartAnother_fn, _initializeIntervalIfNeeded, initializeIntervalIfNeeded_fn, _onInterval, onInterval_fn, _processQueue, processQueue_fn, _throwOnAbort, throwOnAbort_fn, _onEvent, onEvent_fn;
-var PQueue = class extends import_index.default {
-  // TODO: The `throwOnTimeout` option should affect the return types of `add()` and `addAll()`
-  constructor(options) {
-    super();
-    __privateAdd(this, _doesIntervalAllowAnother);
-    __privateAdd(this, _doesConcurrentAllowAnother);
-    __privateAdd(this, _next);
-    __privateAdd(this, _onResumeInterval);
-    __privateAdd(this, _isIntervalPaused);
-    __privateAdd(this, _tryToStartAnother);
-    __privateAdd(this, _initializeIntervalIfNeeded);
-    __privateAdd(this, _onInterval);
-    /**
-    Executes all queued functions until it reaches the limit.
-    */
-    __privateAdd(this, _processQueue);
-    __privateAdd(this, _throwOnAbort);
-    __privateAdd(this, _onEvent);
-    __privateAdd(this, _carryoverConcurrencyCount, void 0);
-    __privateAdd(this, _isIntervalIgnored, void 0);
-    __privateAdd(this, _intervalCount, 0);
-    __privateAdd(this, _intervalCap, void 0);
-    __privateAdd(this, _interval, void 0);
-    __privateAdd(this, _intervalEnd, 0);
-    __privateAdd(this, _intervalId, void 0);
-    __privateAdd(this, _timeoutId, void 0);
-    __privateAdd(this, _queue2, void 0);
-    __privateAdd(this, _queueClass, void 0);
-    __privateAdd(this, _pending, 0);
-    // The `!` is needed because of https://github.com/microsoft/TypeScript/issues/32194
-    __privateAdd(this, _concurrency, void 0);
-    __privateAdd(this, _isPaused, void 0);
-    __privateAdd(this, _throwOnTimeout, void 0);
-    /**
-        Per-operation timeout in milliseconds. Operations fulfill once `timeout` elapses if they haven't already.
-    
-        Applies to each future operation.
-        */
-    __publicField(this, "timeout");
-    options = {
-      carryoverConcurrencyCount: false,
-      intervalCap: Number.POSITIVE_INFINITY,
-      interval: 0,
-      concurrency: Number.POSITIVE_INFINITY,
-      autoStart: true,
-      queueClass: PriorityQueue,
-      ...options
-    };
-    if (!(typeof options.intervalCap === "number" && options.intervalCap >= 1)) {
-      throw new TypeError(`Expected \`intervalCap\` to be a number from 1 and up, got \`${options.intervalCap?.toString() ?? ""}\` (${typeof options.intervalCap})`);
-    }
-    if (options.interval === void 0 || !(Number.isFinite(options.interval) && options.interval >= 0)) {
-      throw new TypeError(`Expected \`interval\` to be a finite number >= 0, got \`${options.interval?.toString() ?? ""}\` (${typeof options.interval})`);
-    }
-    __privateSet(this, _carryoverConcurrencyCount, options.carryoverConcurrencyCount);
-    __privateSet(this, _isIntervalIgnored, options.intervalCap === Number.POSITIVE_INFINITY || options.interval === 0);
-    __privateSet(this, _intervalCap, options.intervalCap);
-    __privateSet(this, _interval, options.interval);
-    __privateSet(this, _queue2, new options.queueClass());
-    __privateSet(this, _queueClass, options.queueClass);
-    this.concurrency = options.concurrency;
-    this.timeout = options.timeout;
-    __privateSet(this, _throwOnTimeout, options.throwOnTimeout === true);
-    __privateSet(this, _isPaused, options.autoStart === false);
-  }
-  get concurrency() {
-    return __privateGet(this, _concurrency);
-  }
-  set concurrency(newConcurrency) {
-    if (!(typeof newConcurrency === "number" && newConcurrency >= 1)) {
-      throw new TypeError(`Expected \`concurrency\` to be a number from 1 and up, got \`${newConcurrency}\` (${typeof newConcurrency})`);
-    }
-    __privateSet(this, _concurrency, newConcurrency);
-    __privateMethod(this, _processQueue, processQueue_fn).call(this);
-  }
-  async add(function_, options = {}) {
-    options = {
-      timeout: this.timeout,
-      throwOnTimeout: __privateGet(this, _throwOnTimeout),
-      ...options
-    };
-    return new Promise((resolve, reject) => {
-      __privateGet(this, _queue2).enqueue(async () => {
-        __privateWrapper(this, _pending)._++;
-        __privateWrapper(this, _intervalCount)._++;
-        try {
-          options.signal?.throwIfAborted();
-          let operation = function_({ signal: options.signal });
-          if (options.timeout) {
-            operation = pTimeout(Promise.resolve(operation), { milliseconds: options.timeout });
-          }
-          if (options.signal) {
-            operation = Promise.race([operation, __privateMethod(this, _throwOnAbort, throwOnAbort_fn).call(this, options.signal)]);
-          }
-          const result = await operation;
-          resolve(result);
-          this.emit("completed", result);
-        } catch (error) {
-          if (error instanceof TimeoutError && !options.throwOnTimeout) {
-            resolve();
-            return;
-          }
-          reject(error);
-          this.emit("error", error);
-        } finally {
-          __privateMethod(this, _next, next_fn).call(this);
-        }
-      }, options);
-      this.emit("add");
-      __privateMethod(this, _tryToStartAnother, tryToStartAnother_fn).call(this);
-    });
-  }
-  async addAll(functions, options) {
-    return Promise.all(functions.map(async (function_) => this.add(function_, options)));
-  }
-  /**
-  Start (or resume) executing enqueued tasks within concurrency limit. No need to call this if queue is not paused (via `options.autoStart = false` or by `.pause()` method.)
-  */
-  start() {
-    if (!__privateGet(this, _isPaused)) {
-      return this;
-    }
-    __privateSet(this, _isPaused, false);
-    __privateMethod(this, _processQueue, processQueue_fn).call(this);
-    return this;
-  }
-  /**
-  Put queue execution on hold.
-  */
-  pause() {
-    __privateSet(this, _isPaused, true);
-  }
-  /**
-  Clear the queue.
-  */
-  clear() {
-    __privateSet(this, _queue2, new (__privateGet(this, _queueClass))());
-  }
-  /**
-      Can be called multiple times. Useful if you for example add additional items at a later time.
-  
-      @returns A promise that settles when the queue becomes empty.
-      */
-  async onEmpty() {
-    if (__privateGet(this, _queue2).size === 0) {
-      return;
-    }
-    await __privateMethod(this, _onEvent, onEvent_fn).call(this, "empty");
-  }
-  /**
-      @returns A promise that settles when the queue size is less than the given limit: `queue.size < limit`.
-  
-      If you want to avoid having the queue grow beyond a certain size you can `await queue.onSizeLessThan()` before adding a new item.
-  
-      Note that this only limits the number of items waiting to start. There could still be up to `concurrency` jobs already running that this call does not include in its calculation.
-      */
-  async onSizeLessThan(limit) {
-    if (__privateGet(this, _queue2).size < limit) {
-      return;
-    }
-    await __privateMethod(this, _onEvent, onEvent_fn).call(this, "next", () => __privateGet(this, _queue2).size < limit);
-  }
-  /**
-      The difference with `.onEmpty` is that `.onIdle` guarantees that all work from the queue has finished. `.onEmpty` merely signals that the queue is empty, but it could mean that some promises haven't completed yet.
-  
-      @returns A promise that settles when the queue becomes empty, and all promises have completed; `queue.size === 0 && queue.pending === 0`.
-      */
-  async onIdle() {
-    if (__privateGet(this, _pending) === 0 && __privateGet(this, _queue2).size === 0) {
-      return;
-    }
-    await __privateMethod(this, _onEvent, onEvent_fn).call(this, "idle");
-  }
-  /**
-  Size of the queue, the number of queued items waiting to run.
-  */
-  get size() {
-    return __privateGet(this, _queue2).size;
-  }
-  /**
-      Size of the queue, filtered by the given options.
-  
-      For example, this can be used to find the number of items remaining in the queue with a specific priority level.
-      */
-  sizeBy(options) {
-    return __privateGet(this, _queue2).filter(options).length;
-  }
-  /**
-  Number of running items (no longer in the queue).
-  */
-  get pending() {
-    return __privateGet(this, _pending);
-  }
-  /**
-  Whether the queue is currently paused.
-  */
-  get isPaused() {
-    return __privateGet(this, _isPaused);
-  }
-};
-_carryoverConcurrencyCount = new WeakMap();
-_isIntervalIgnored = new WeakMap();
-_intervalCount = new WeakMap();
-_intervalCap = new WeakMap();
-_interval = new WeakMap();
-_intervalEnd = new WeakMap();
-_intervalId = new WeakMap();
-_timeoutId = new WeakMap();
-_queue2 = new WeakMap();
-_queueClass = new WeakMap();
-_pending = new WeakMap();
-_concurrency = new WeakMap();
-_isPaused = new WeakMap();
-_throwOnTimeout = new WeakMap();
-_doesIntervalAllowAnother = new WeakSet();
-doesIntervalAllowAnother_get = function() {
-  return __privateGet(this, _isIntervalIgnored) || __privateGet(this, _intervalCount) < __privateGet(this, _intervalCap);
-};
-_doesConcurrentAllowAnother = new WeakSet();
-doesConcurrentAllowAnother_get = function() {
-  return __privateGet(this, _pending) < __privateGet(this, _concurrency);
-};
-_next = new WeakSet();
-next_fn = function() {
-  __privateWrapper(this, _pending)._--;
-  __privateMethod(this, _tryToStartAnother, tryToStartAnother_fn).call(this);
-  this.emit("next");
-};
-_onResumeInterval = new WeakSet();
-onResumeInterval_fn = function() {
-  __privateMethod(this, _onInterval, onInterval_fn).call(this);
-  __privateMethod(this, _initializeIntervalIfNeeded, initializeIntervalIfNeeded_fn).call(this);
-  __privateSet(this, _timeoutId, void 0);
-};
-_isIntervalPaused = new WeakSet();
-isIntervalPaused_get = function() {
-  const now = Date.now();
-  if (__privateGet(this, _intervalId) === void 0) {
-    const delay = __privateGet(this, _intervalEnd) - now;
-    if (delay < 0) {
-      __privateSet(this, _intervalCount, __privateGet(this, _carryoverConcurrencyCount) ? __privateGet(this, _pending) : 0);
-    } else {
-      if (__privateGet(this, _timeoutId) === void 0) {
-        __privateSet(this, _timeoutId, setTimeout(() => {
-          __privateMethod(this, _onResumeInterval, onResumeInterval_fn).call(this);
-        }, delay));
-      }
-      return true;
-    }
-  }
-  return false;
-};
-_tryToStartAnother = new WeakSet();
-tryToStartAnother_fn = function() {
-  if (__privateGet(this, _queue2).size === 0) {
-    if (__privateGet(this, _intervalId)) {
-      clearInterval(__privateGet(this, _intervalId));
-    }
-    __privateSet(this, _intervalId, void 0);
-    this.emit("empty");
-    if (__privateGet(this, _pending) === 0) {
-      this.emit("idle");
-    }
-    return false;
-  }
-  if (!__privateGet(this, _isPaused)) {
-    const canInitializeInterval = !__privateGet(this, _isIntervalPaused, isIntervalPaused_get);
-    if (__privateGet(this, _doesIntervalAllowAnother, doesIntervalAllowAnother_get) && __privateGet(this, _doesConcurrentAllowAnother, doesConcurrentAllowAnother_get)) {
-      const job = __privateGet(this, _queue2).dequeue();
-      if (!job) {
-        return false;
-      }
-      this.emit("active");
-      job();
-      if (canInitializeInterval) {
-        __privateMethod(this, _initializeIntervalIfNeeded, initializeIntervalIfNeeded_fn).call(this);
-      }
-      return true;
-    }
-  }
-  return false;
-};
-_initializeIntervalIfNeeded = new WeakSet();
-initializeIntervalIfNeeded_fn = function() {
-  if (__privateGet(this, _isIntervalIgnored) || __privateGet(this, _intervalId) !== void 0) {
-    return;
-  }
-  __privateSet(this, _intervalId, setInterval(() => {
-    __privateMethod(this, _onInterval, onInterval_fn).call(this);
-  }, __privateGet(this, _interval)));
-  __privateSet(this, _intervalEnd, Date.now() + __privateGet(this, _interval));
-};
-_onInterval = new WeakSet();
-onInterval_fn = function() {
-  if (__privateGet(this, _intervalCount) === 0 && __privateGet(this, _pending) === 0 && __privateGet(this, _intervalId)) {
-    clearInterval(__privateGet(this, _intervalId));
-    __privateSet(this, _intervalId, void 0);
-  }
-  __privateSet(this, _intervalCount, __privateGet(this, _carryoverConcurrencyCount) ? __privateGet(this, _pending) : 0);
-  __privateMethod(this, _processQueue, processQueue_fn).call(this);
-};
-_processQueue = new WeakSet();
-processQueue_fn = function() {
-  while (__privateMethod(this, _tryToStartAnother, tryToStartAnother_fn).call(this)) {
-  }
-};
-_throwOnAbort = new WeakSet();
-throwOnAbort_fn = async function(signal) {
-  return new Promise((_resolve, reject) => {
-    signal.addEventListener("abort", () => {
-      reject(signal.reason);
-    }, { once: true });
-  });
-};
-_onEvent = new WeakSet();
-onEvent_fn = async function(event, filter) {
-  return new Promise((resolve) => {
-    const listener = () => {
-      if (filter && !filter()) {
-        return;
-      }
-      this.off(event, listener);
-      resolve();
-    };
-    this.on(event, listener);
-  });
-};
-
-// public/iterator plugin info.png
-var iterator_plugin_info_default = "./iterator plugin info-LVNK74FJ.png";
-
-// src/helpers/createDigest.ts
-var import_sha256 = __toESM(require_sha256(), 1);
-var import_crypto_js = __toESM(require_crypto_js(), 1);
-var createDigest = async (input) => {
-  const hash = (0, import_sha256.default)(input);
-  return hash.toString(import_crypto_js.enc.Hex);
-};
-
-// src/helpers/lzObject.ts
-var LZString = __toESM(require_lz_string(), 1);
-var compressObject = (obj) => {
-  try {
-    const jsonString = JSON.stringify(obj);
-    return LZString.compressToUTF16(jsonString);
-  } catch (error) {
-    console.error("Error compressing object:", error);
-    throw error;
-  }
-};
-var decompressObject = (compressedData) => {
-  try {
-    const decompressed = LZString.decompressFromUTF16(compressedData);
-    if (!decompressed) {
-      throw new Error("Decompression returned null or undefined.");
-    }
-    return JSON.parse(decompressed);
-  } catch (error) {
-    console.error("Error decompressing object:", error);
-    throw error;
-  }
-};
-
-// src/nodes/IteratorNode.ts
-var callGraphConnectionIds = {
-  graph: "graph",
-  inputs: "inputs",
-  outputs: "outputs",
-  error: "error"
-};
-var iteratorConnectionIds = {
-  iteratorInputs: "iteratorInputs",
-  iteratorOutputs: "iteratorOutputs",
-  graph: "graph",
-  chunkSize: "chunkSize",
-  error: "error",
-  hasCache: "hasCache"
-};
-var iteratorCacheStorage = /* @__PURE__ */ new Map();
-function createIteratorNode(rivet) {
-  const iteratorInputOutputsHelperMessage = rivet.dedent`Inputs must be an array of objects to iterate over.  Each object in the array should be a ObjectDataValue \`{type: 'object', value: <graph inputs>}\`; where <graph inputs> is of the format \`{type: 'object', value: {<graph input id>: <input value>}}\` The graph input id should match the graph's input ports.  The input value should be a DataValue. 
-
-  Ouputs will be an array of ObjectDataValue \`type: 'object', value: {<graph output id>: <output value>}\``;
-  const IteratorNodeImpl = {
-    // This should create a new instance of your node type from scratch.
-    create() {
-      const id = rivet.newId();
-      const node = {
-        // Use rivet.newId to generate new IDs for your nodes.
-        id,
-        // This is the default data that your node will store
-        data: {
-          iteratorOutputs: [],
-          chunkSize: 5,
-          useChunkSizeToggle: false,
-          hasCache: false
-        },
-        // This is the default title of your node.
-        title: "Iterator Node",
-        // This must match the type of your node.
-        type: "iteratorNode",
-        // X and Y should be set to 0. Width should be set to a reasonable number so there is no overflow.
-        visualData: {
-          x: 0,
-          y: 0,
-          width: 200
-        }
-      };
-      return node;
-    },
-    // This function should return all input ports for your node, given its data, connections, all other nodes, and the project. The
-    // connection, nodes, and project are for advanced use-cases and can usually be ignored.
-    getInputDefinitions(data, _connections, _nodes, _project) {
-      const inputs = [];
-      inputs.push({
-        id: iteratorConnectionIds.graph,
-        dataType: "graph-reference",
-        title: "Graph",
-        description: "The reference to the graph to call.",
-        required: true
-      });
-      inputs.push({
-        id: iteratorConnectionIds.iteratorInputs,
-        dataType: "object[]",
-        title: "Iterator Inputs Array",
-        description: iteratorInputOutputsHelperMessage,
-        required: true
-      });
-      if (data.useChunkSizeToggle) {
-        inputs.push({
-          id: iteratorConnectionIds.chunkSize,
-          dataType: "number",
-          title: "Chunk Size",
-          description: "The concurrency limit: The number of items to process at the same time.",
-          data: data.chunkSize
-        });
-      }
-      return inputs;
-    },
-    // This function should return all output ports for your node, given its data, connections, all other nodes, and the project. The
-    // connection, nodes, and project are for advanced use-cases and can usually be ignored.
-    getOutputDefinitions(data, _connections, _nodes, _project) {
-      return [
-        {
-          id: iteratorConnectionIds.iteratorOutputs,
-          dataType: "object[]",
-          title: "Iterator Output Array"
-        }
-      ];
-    },
-    // This returns UI information for your node, such as how it appears in the context menu.
-    getUIData() {
-      return {
-        contextMenuTitle: "Iterator Node",
-        group: "Logic",
-        infoBoxBody: rivet.dedent`This is an iterator node.  This node will map over an array and process each item with the graph provided. 
-          
-          ${iteratorInputOutputsHelperMessage}`,
-        infoBoxTitle: "Iterator Node",
-        infoBoxImageUri: iterator_plugin_info_default
-      };
-    },
-    // This function defines all editors that appear when you edit your node.
-    getEditors(_data) {
-      return [
-        {
-          type: "number",
-          dataKey: "chunkSize",
-          label: "Chunk size",
-          defaultValue: 1,
-          helperMessage: "The number of items to process at the same time.  This will help process arrays quickly while not overloading the system.  Recommended to keep this below 10 for subgraphs that make network calls or stream model responses.",
-          useInputToggleDataKey: "useChunkSizeToggle"
-        },
-        {
-          type: "toggle",
-          dataKey: "hasCache",
-          label: "Cache Execution",
-          helperMessage: rivet.dedent`If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs.`
-        }
-      ];
-    },
-    // This function returns the body of the node when it is rendered on the graph. You should show
-    // what the current data of the node is in some way that is useful at a glance.
-    getBody(data) {
-      return rivet.dedent`Iterator Node
-				Chunk Size: ${data.chunkSize}
-				Has Cache: ${data.hasCache}
-      `;
-    },
-    // This is the main processing function for your node. It can do whatever you like, but it must return
-    // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
-    // must also correspond to the output definitions you defined in the getOutputDefinitions function.
-    async process(data, inputData, context) {
-      const outputs = {};
-      let abortIteration = false;
-      context.signal.addEventListener("abort", () => {
-        abortIteration = true;
-      });
-      const graphRef = rivet.coerceType(inputData[iteratorConnectionIds.graph], "graph-reference");
-      const iteratorInputs = rivet.coerceType(inputData[iteratorConnectionIds.iteratorInputs], "object[]");
-      let chunkSize = rivet.coerceTypeOptional(inputData[iteratorConnectionIds.chunkSize], "number") ?? data.chunkSize;
-      chunkSize = chunkSize > 0 ? chunkSize : 1;
-      const allItemsAreObjects = iteratorInputs.some((s) => typeof s !== "object");
-      if (allItemsAreObjects) {
-        outputs[iteratorConnectionIds.iteratorOutputs] = {
-          type: "control-flow-excluded",
-          value: void 0
-        };
-        outputs[iteratorConnectionIds.error] = {
-          type: "string",
-          value: rivet.dedent`Input array must be an array of objects.  Each object needs to be a DataValue.  A graph needs an object with keys that match the graph's input ports`
-        };
-        return outputs;
-      }
-      const graph = context.project.graphs[graphRef.graphId];
-      const graphSnapshot = await createDigest(JSON.stringify(graph.nodes.map((m) => m.data)));
-      const cacheId = graphRef.graphId;
-      console.log("iterator", { data, cacheId, iteratorCacheStorage });
-      const hasCache = data.hasCache && cacheId != null;
-      const cacheStorage = iteratorCacheStorage.get(cacheId) ?? {
-        cache: /* @__PURE__ */ new Map(),
-        expiryTimestamp: Date.now() + 1 * 60 * 60 * 1e3,
-        graphSnapshot
-      };
-      invalideCacheIfChanges(cacheStorage, graphSnapshot);
-      const missingKeys = /* @__PURE__ */ new Set();
-      const notDataValue = /* @__PURE__ */ new Set();
-      const invalidInputs = iteratorInputs.some((s) => {
-        return validateInputItem(s, graph, missingKeys, notDataValue);
-      });
-      if (invalidInputs) {
-        outputs[iteratorConnectionIds.iteratorOutputs] = {
-          type: "control-flow-excluded",
-          value: void 0
-        };
-        let errorMessage = "Input validation error::";
-        if (missingKeys.size > 0) {
-          errorMessage += `Missing keys required for graph: 
-            ${Array.from(missingKeys).map((key) => key).join("; ")}`;
-        }
-        if (notDataValue.size > 0) {
-          errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue: 
-            ${Array.from(notDataValue).map((value) => JSON.stringify(value)).join("; ")}`;
-        }
-        outputs[iteratorConnectionIds.error] = {
-          type: "string",
-          value: errorMessage
-        };
-        return outputs;
-      }
-      const queue = new PQueue({ concurrency: chunkSize });
-      const addToQueue = iteratorInputs.map((item, index) => {
-        return queue.add(async () => {
-          let itemOutput = {};
-          try {
-            if (!abortIteration) {
-              const node = rivet.callGraphNode.impl.create();
-              const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
-              let itemDataValue = {
-                type: "object",
-                value: item
-              };
-              if (isObjectDataValue(item)) {
-                itemDataValue = item;
-              }
-              const iteratorInputData = {
-                [callGraphConnectionIds.graph]: inputData[iteratorConnectionIds.graph],
-                [callGraphConnectionIds.inputs]: itemDataValue
-              };
-              if (hasCache) {
-                const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
-                const cachedOutputCompressed = cacheStorage.cache.get(cacheKey);
-                if (cachedOutputCompressed) {
-                  console.log("iterator", "get cache", {
-                    cacheKey,
-                    itemDataValue,
-                    cachedOutputCompressed,
-                    iteratorCacheStorage
-                  });
-                  return decompressObject(cachedOutputCompressed);
-                }
-              }
-              itemOutput = await impl.process(iteratorInputData, context);
-              if (hasCache) {
-                const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
-                console.log("iterator", "set cache", {
-                  cacheKey,
-                  itemOutput,
-                  itemDataValue,
-                  iteratorCacheStorage
-                });
-                cacheStorage.cache.set(cacheKey, compressObject(itemOutput));
-              }
-            } else {
-              itemOutput[callGraphConnectionIds.outputs] = {
-                type: "control-flow-excluded",
-                value: void 0
-              };
-              itemOutput[callGraphConnectionIds.error] = {
-                type: "string",
-                value: `Aborted ${graphRef.graphName}`
-              };
-            }
-          } catch (err) {
-            itemOutput[callGraphConnectionIds.outputs] = {
-              type: "control-flow-excluded",
-              value: void 0
-            };
-            itemOutput[callGraphConnectionIds.error] = {
-              type: "string",
-              value: `Error running graph ${graphRef.graphName}.  Inputs: ${JSON.stringify(item)}  Message: ${rivet.getError(err).message}`
-            };
-            abortIteration = true;
-          }
-          return itemOutput;
-        });
-      });
-      const iteratorOutputs = await Promise.all(addToQueue);
-      await queue.onIdle();
-      if (hasCache) {
-        console.log("iterator", "set cacheStorage", {
-          cacheId,
-          cacheStorage
-        });
-        iteratorCacheStorage.set(cacheId, cacheStorage);
-        void cleanExpiredCache();
-      }
-      const errorInIteratorOutputs = iteratorOutputs.some(
-        (f) => f[callGraphConnectionIds.outputs]?.type === "control-flow-excluded"
-      );
-      if (errorInIteratorOutputs) {
-        outputs[iteratorConnectionIds.iteratorOutputs] = {
-          type: "control-flow-excluded",
-          value: void 0
-        };
-        outputs[iteratorConnectionIds.error] = {
-          type: "string",
-          value: iteratorOutputs.filter((f) => f[callGraphConnectionIds.outputs]?.type === "control-flow-excluded").map((m, i) => `ItemIndex:${i}:: ${m[callGraphConnectionIds.error]?.value}`).join(";\n  ")
-        };
-        return outputs;
-      }
-      outputs[iteratorConnectionIds.iteratorOutputs] = {
-        type: "object[]",
-        value: iteratorOutputs
-      };
-      return outputs;
-    }
-  };
-  const isAnyDataValue = (data) => {
-    return typeof data === "object" && "type" in data && "value" in data && (rivet.isScalarDataType(data.type) || rivet.isArrayDataType(data.type) || rivet.isFunctionDataType(data.type));
-  };
-  const isObjectDataValue = (data) => {
-    return typeof data === "object" && data?.type === "object" && typeof data?.value === "object";
-  };
-  const invalideCacheIfChanges = (cacheStorage, graphSnapshot) => {
-    if (cacheStorage.graphSnapshot !== graphSnapshot) {
-      console.log("iterator", "invalidate cache", {
-        cacheStorage,
-        graphSnapshot
-      });
-      cacheStorage.cache.clear();
-      cacheStorage.graphSnapshot = graphSnapshot;
-    }
-  };
-  const validateInputItem = (item, graph, missingKeysOut, notDataValueOut) => {
-    let itemKeys = Object.keys(item);
-    if (isObjectDataValue(item)) {
-      itemKeys = Object.keys(item.value);
-    }
-    let itemValues = Object.values(item);
-    if (isObjectDataValue(item)) {
-      itemValues = Object.values(item.value);
-    }
-    const graphInputNodes = graph.nodes.filter((f) => f.type === "graphInput");
-    const expectedKeys = graphInputNodes.map((m) => {
-      const id = m.data.id;
-      return id ?? null;
-    }).filter((f) => f != null);
-    if (expectedKeys.some((s) => !itemKeys.includes(s))) {
-      for (const key of expectedKeys) {
-        if (!itemKeys.includes(key)) {
-          missingKeysOut.add(key);
-        }
-      }
-      return true;
-    }
-    const invalidData = itemValues.some((s) => {
-      const isDataType = isAnyDataValue(s);
-      if (!isDataType) {
-        notDataValueOut.add(s);
-        return true;
-      }
-    });
-    return invalidData;
-  };
-  const cleanExpiredCache = async () => {
-    const now = Date.now();
-    iteratorCacheStorage.forEach((value, key) => {
-      if (value.expiryTimestamp < now) {
-        console.log("iterator", "delete cache", {
-          key,
-          value
-        });
-        iteratorCacheStorage.delete(key);
-      }
-    });
-  };
-  const iteratorNode = rivet.pluginNodeDefinition(IteratorNodeImpl, "Iterator Node");
-  return iteratorNode;
-}
-
 // src/helpers/PineconeVectorDatabase.ts
 var getCollection = (collectionUrlString) => {
   let collectionURL;
@@ -8164,7 +7312,6 @@ var PineconeVectorDatabase = class {
   async query(params) {
     const collectionDetails = getCollection(params.collectionUrl);
     const req = params;
-    console.log("pinecone", req);
     const response = await fetch(`${collectionDetails.host}/query`, {
       method: "POST",
       body: JSON.stringify({
@@ -12247,7 +11394,7 @@ function createPineconeUpsertNode(rivet) {
       return [
         {
           id: pineconeUpsertIds.ok,
-          title: "Ok",
+          title: "ok",
           dataType: "boolean"
         }
       ];
@@ -12386,6 +11533,881 @@ function createPineconeUpsertNode(rivet) {
     }
   };
   return rivet.pluginNodeDefinition(PineconeUpsertNodeImpl, "Pinecone Upsert Node");
+}
+
+// node_modules/.pnpm/eventemitter3@5.0.1/node_modules/eventemitter3/index.mjs
+var import_index = __toESM(require_eventemitter3(), 1);
+
+// node_modules/.pnpm/p-timeout@6.1.2/node_modules/p-timeout/index.js
+var TimeoutError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "TimeoutError";
+  }
+};
+var AbortError = class extends Error {
+  constructor(message) {
+    super();
+    this.name = "AbortError";
+    this.message = message;
+  }
+};
+var getDOMException = (errorMessage) => globalThis.DOMException === void 0 ? new AbortError(errorMessage) : new DOMException(errorMessage);
+var getAbortedReason = (signal) => {
+  const reason = signal.reason === void 0 ? getDOMException("This operation was aborted.") : signal.reason;
+  return reason instanceof Error ? reason : getDOMException(reason);
+};
+function pTimeout(promise, options) {
+  const {
+    milliseconds,
+    fallback,
+    message,
+    customTimers = { setTimeout, clearTimeout }
+  } = options;
+  let timer;
+  const wrappedPromise = new Promise((resolve, reject) => {
+    if (typeof milliseconds !== "number" || Math.sign(milliseconds) !== 1) {
+      throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${milliseconds}\``);
+    }
+    if (options.signal) {
+      const { signal } = options;
+      if (signal.aborted) {
+        reject(getAbortedReason(signal));
+      }
+      signal.addEventListener("abort", () => {
+        reject(getAbortedReason(signal));
+      });
+    }
+    if (milliseconds === Number.POSITIVE_INFINITY) {
+      promise.then(resolve, reject);
+      return;
+    }
+    const timeoutError = new TimeoutError();
+    timer = customTimers.setTimeout.call(void 0, () => {
+      if (fallback) {
+        try {
+          resolve(fallback());
+        } catch (error) {
+          reject(error);
+        }
+        return;
+      }
+      if (typeof promise.cancel === "function") {
+        promise.cancel();
+      }
+      if (message === false) {
+        resolve();
+      } else if (message instanceof Error) {
+        reject(message);
+      } else {
+        timeoutError.message = message ?? `Promise timed out after ${milliseconds} milliseconds`;
+        reject(timeoutError);
+      }
+    }, milliseconds);
+    (async () => {
+      try {
+        resolve(await promise);
+      } catch (error) {
+        reject(error);
+      }
+    })();
+  });
+  const cancelablePromise = wrappedPromise.finally(() => {
+    cancelablePromise.clear();
+  });
+  cancelablePromise.clear = () => {
+    customTimers.clearTimeout.call(void 0, timer);
+    timer = void 0;
+  };
+  return cancelablePromise;
+}
+
+// node_modules/.pnpm/p-queue@8.0.1/node_modules/p-queue/dist/lower-bound.js
+function lowerBound(array, value, comparator) {
+  let first = 0;
+  let count = array.length;
+  while (count > 0) {
+    const step = Math.trunc(count / 2);
+    let it = first + step;
+    if (comparator(array[it], value) <= 0) {
+      first = ++it;
+      count -= step + 1;
+    } else {
+      count = step;
+    }
+  }
+  return first;
+}
+
+// node_modules/.pnpm/p-queue@8.0.1/node_modules/p-queue/dist/priority-queue.js
+var _queue;
+var PriorityQueue = class {
+  constructor() {
+    __privateAdd(this, _queue, []);
+  }
+  enqueue(run, options) {
+    options = {
+      priority: 0,
+      ...options
+    };
+    const element = {
+      priority: options.priority,
+      run
+    };
+    if (this.size && __privateGet(this, _queue)[this.size - 1].priority >= options.priority) {
+      __privateGet(this, _queue).push(element);
+      return;
+    }
+    const index = lowerBound(__privateGet(this, _queue), element, (a, b) => b.priority - a.priority);
+    __privateGet(this, _queue).splice(index, 0, element);
+  }
+  dequeue() {
+    const item = __privateGet(this, _queue).shift();
+    return item?.run;
+  }
+  filter(options) {
+    return __privateGet(this, _queue).filter((element) => element.priority === options.priority).map((element) => element.run);
+  }
+  get size() {
+    return __privateGet(this, _queue).length;
+  }
+};
+_queue = new WeakMap();
+
+// node_modules/.pnpm/p-queue@8.0.1/node_modules/p-queue/dist/index.js
+var _carryoverConcurrencyCount, _isIntervalIgnored, _intervalCount, _intervalCap, _interval, _intervalEnd, _intervalId, _timeoutId, _queue2, _queueClass, _pending, _concurrency, _isPaused, _throwOnTimeout, _doesIntervalAllowAnother, doesIntervalAllowAnother_get, _doesConcurrentAllowAnother, doesConcurrentAllowAnother_get, _next, next_fn, _onResumeInterval, onResumeInterval_fn, _isIntervalPaused, isIntervalPaused_get, _tryToStartAnother, tryToStartAnother_fn, _initializeIntervalIfNeeded, initializeIntervalIfNeeded_fn, _onInterval, onInterval_fn, _processQueue, processQueue_fn, _throwOnAbort, throwOnAbort_fn, _onEvent, onEvent_fn;
+var PQueue = class extends import_index.default {
+  // TODO: The `throwOnTimeout` option should affect the return types of `add()` and `addAll()`
+  constructor(options) {
+    super();
+    __privateAdd(this, _doesIntervalAllowAnother);
+    __privateAdd(this, _doesConcurrentAllowAnother);
+    __privateAdd(this, _next);
+    __privateAdd(this, _onResumeInterval);
+    __privateAdd(this, _isIntervalPaused);
+    __privateAdd(this, _tryToStartAnother);
+    __privateAdd(this, _initializeIntervalIfNeeded);
+    __privateAdd(this, _onInterval);
+    /**
+    Executes all queued functions until it reaches the limit.
+    */
+    __privateAdd(this, _processQueue);
+    __privateAdd(this, _throwOnAbort);
+    __privateAdd(this, _onEvent);
+    __privateAdd(this, _carryoverConcurrencyCount, void 0);
+    __privateAdd(this, _isIntervalIgnored, void 0);
+    __privateAdd(this, _intervalCount, 0);
+    __privateAdd(this, _intervalCap, void 0);
+    __privateAdd(this, _interval, void 0);
+    __privateAdd(this, _intervalEnd, 0);
+    __privateAdd(this, _intervalId, void 0);
+    __privateAdd(this, _timeoutId, void 0);
+    __privateAdd(this, _queue2, void 0);
+    __privateAdd(this, _queueClass, void 0);
+    __privateAdd(this, _pending, 0);
+    // The `!` is needed because of https://github.com/microsoft/TypeScript/issues/32194
+    __privateAdd(this, _concurrency, void 0);
+    __privateAdd(this, _isPaused, void 0);
+    __privateAdd(this, _throwOnTimeout, void 0);
+    /**
+        Per-operation timeout in milliseconds. Operations fulfill once `timeout` elapses if they haven't already.
+    
+        Applies to each future operation.
+        */
+    __publicField(this, "timeout");
+    options = {
+      carryoverConcurrencyCount: false,
+      intervalCap: Number.POSITIVE_INFINITY,
+      interval: 0,
+      concurrency: Number.POSITIVE_INFINITY,
+      autoStart: true,
+      queueClass: PriorityQueue,
+      ...options
+    };
+    if (!(typeof options.intervalCap === "number" && options.intervalCap >= 1)) {
+      throw new TypeError(`Expected \`intervalCap\` to be a number from 1 and up, got \`${options.intervalCap?.toString() ?? ""}\` (${typeof options.intervalCap})`);
+    }
+    if (options.interval === void 0 || !(Number.isFinite(options.interval) && options.interval >= 0)) {
+      throw new TypeError(`Expected \`interval\` to be a finite number >= 0, got \`${options.interval?.toString() ?? ""}\` (${typeof options.interval})`);
+    }
+    __privateSet(this, _carryoverConcurrencyCount, options.carryoverConcurrencyCount);
+    __privateSet(this, _isIntervalIgnored, options.intervalCap === Number.POSITIVE_INFINITY || options.interval === 0);
+    __privateSet(this, _intervalCap, options.intervalCap);
+    __privateSet(this, _interval, options.interval);
+    __privateSet(this, _queue2, new options.queueClass());
+    __privateSet(this, _queueClass, options.queueClass);
+    this.concurrency = options.concurrency;
+    this.timeout = options.timeout;
+    __privateSet(this, _throwOnTimeout, options.throwOnTimeout === true);
+    __privateSet(this, _isPaused, options.autoStart === false);
+  }
+  get concurrency() {
+    return __privateGet(this, _concurrency);
+  }
+  set concurrency(newConcurrency) {
+    if (!(typeof newConcurrency === "number" && newConcurrency >= 1)) {
+      throw new TypeError(`Expected \`concurrency\` to be a number from 1 and up, got \`${newConcurrency}\` (${typeof newConcurrency})`);
+    }
+    __privateSet(this, _concurrency, newConcurrency);
+    __privateMethod(this, _processQueue, processQueue_fn).call(this);
+  }
+  async add(function_, options = {}) {
+    options = {
+      timeout: this.timeout,
+      throwOnTimeout: __privateGet(this, _throwOnTimeout),
+      ...options
+    };
+    return new Promise((resolve, reject) => {
+      __privateGet(this, _queue2).enqueue(async () => {
+        __privateWrapper(this, _pending)._++;
+        __privateWrapper(this, _intervalCount)._++;
+        try {
+          options.signal?.throwIfAborted();
+          let operation = function_({ signal: options.signal });
+          if (options.timeout) {
+            operation = pTimeout(Promise.resolve(operation), { milliseconds: options.timeout });
+          }
+          if (options.signal) {
+            operation = Promise.race([operation, __privateMethod(this, _throwOnAbort, throwOnAbort_fn).call(this, options.signal)]);
+          }
+          const result = await operation;
+          resolve(result);
+          this.emit("completed", result);
+        } catch (error) {
+          if (error instanceof TimeoutError && !options.throwOnTimeout) {
+            resolve();
+            return;
+          }
+          reject(error);
+          this.emit("error", error);
+        } finally {
+          __privateMethod(this, _next, next_fn).call(this);
+        }
+      }, options);
+      this.emit("add");
+      __privateMethod(this, _tryToStartAnother, tryToStartAnother_fn).call(this);
+    });
+  }
+  async addAll(functions, options) {
+    return Promise.all(functions.map(async (function_) => this.add(function_, options)));
+  }
+  /**
+  Start (or resume) executing enqueued tasks within concurrency limit. No need to call this if queue is not paused (via `options.autoStart = false` or by `.pause()` method.)
+  */
+  start() {
+    if (!__privateGet(this, _isPaused)) {
+      return this;
+    }
+    __privateSet(this, _isPaused, false);
+    __privateMethod(this, _processQueue, processQueue_fn).call(this);
+    return this;
+  }
+  /**
+  Put queue execution on hold.
+  */
+  pause() {
+    __privateSet(this, _isPaused, true);
+  }
+  /**
+  Clear the queue.
+  */
+  clear() {
+    __privateSet(this, _queue2, new (__privateGet(this, _queueClass))());
+  }
+  /**
+      Can be called multiple times. Useful if you for example add additional items at a later time.
+  
+      @returns A promise that settles when the queue becomes empty.
+      */
+  async onEmpty() {
+    if (__privateGet(this, _queue2).size === 0) {
+      return;
+    }
+    await __privateMethod(this, _onEvent, onEvent_fn).call(this, "empty");
+  }
+  /**
+      @returns A promise that settles when the queue size is less than the given limit: `queue.size < limit`.
+  
+      If you want to avoid having the queue grow beyond a certain size you can `await queue.onSizeLessThan()` before adding a new item.
+  
+      Note that this only limits the number of items waiting to start. There could still be up to `concurrency` jobs already running that this call does not include in its calculation.
+      */
+  async onSizeLessThan(limit) {
+    if (__privateGet(this, _queue2).size < limit) {
+      return;
+    }
+    await __privateMethod(this, _onEvent, onEvent_fn).call(this, "next", () => __privateGet(this, _queue2).size < limit);
+  }
+  /**
+      The difference with `.onEmpty` is that `.onIdle` guarantees that all work from the queue has finished. `.onEmpty` merely signals that the queue is empty, but it could mean that some promises haven't completed yet.
+  
+      @returns A promise that settles when the queue becomes empty, and all promises have completed; `queue.size === 0 && queue.pending === 0`.
+      */
+  async onIdle() {
+    if (__privateGet(this, _pending) === 0 && __privateGet(this, _queue2).size === 0) {
+      return;
+    }
+    await __privateMethod(this, _onEvent, onEvent_fn).call(this, "idle");
+  }
+  /**
+  Size of the queue, the number of queued items waiting to run.
+  */
+  get size() {
+    return __privateGet(this, _queue2).size;
+  }
+  /**
+      Size of the queue, filtered by the given options.
+  
+      For example, this can be used to find the number of items remaining in the queue with a specific priority level.
+      */
+  sizeBy(options) {
+    return __privateGet(this, _queue2).filter(options).length;
+  }
+  /**
+  Number of running items (no longer in the queue).
+  */
+  get pending() {
+    return __privateGet(this, _pending);
+  }
+  /**
+  Whether the queue is currently paused.
+  */
+  get isPaused() {
+    return __privateGet(this, _isPaused);
+  }
+};
+_carryoverConcurrencyCount = new WeakMap();
+_isIntervalIgnored = new WeakMap();
+_intervalCount = new WeakMap();
+_intervalCap = new WeakMap();
+_interval = new WeakMap();
+_intervalEnd = new WeakMap();
+_intervalId = new WeakMap();
+_timeoutId = new WeakMap();
+_queue2 = new WeakMap();
+_queueClass = new WeakMap();
+_pending = new WeakMap();
+_concurrency = new WeakMap();
+_isPaused = new WeakMap();
+_throwOnTimeout = new WeakMap();
+_doesIntervalAllowAnother = new WeakSet();
+doesIntervalAllowAnother_get = function() {
+  return __privateGet(this, _isIntervalIgnored) || __privateGet(this, _intervalCount) < __privateGet(this, _intervalCap);
+};
+_doesConcurrentAllowAnother = new WeakSet();
+doesConcurrentAllowAnother_get = function() {
+  return __privateGet(this, _pending) < __privateGet(this, _concurrency);
+};
+_next = new WeakSet();
+next_fn = function() {
+  __privateWrapper(this, _pending)._--;
+  __privateMethod(this, _tryToStartAnother, tryToStartAnother_fn).call(this);
+  this.emit("next");
+};
+_onResumeInterval = new WeakSet();
+onResumeInterval_fn = function() {
+  __privateMethod(this, _onInterval, onInterval_fn).call(this);
+  __privateMethod(this, _initializeIntervalIfNeeded, initializeIntervalIfNeeded_fn).call(this);
+  __privateSet(this, _timeoutId, void 0);
+};
+_isIntervalPaused = new WeakSet();
+isIntervalPaused_get = function() {
+  const now = Date.now();
+  if (__privateGet(this, _intervalId) === void 0) {
+    const delay = __privateGet(this, _intervalEnd) - now;
+    if (delay < 0) {
+      __privateSet(this, _intervalCount, __privateGet(this, _carryoverConcurrencyCount) ? __privateGet(this, _pending) : 0);
+    } else {
+      if (__privateGet(this, _timeoutId) === void 0) {
+        __privateSet(this, _timeoutId, setTimeout(() => {
+          __privateMethod(this, _onResumeInterval, onResumeInterval_fn).call(this);
+        }, delay));
+      }
+      return true;
+    }
+  }
+  return false;
+};
+_tryToStartAnother = new WeakSet();
+tryToStartAnother_fn = function() {
+  if (__privateGet(this, _queue2).size === 0) {
+    if (__privateGet(this, _intervalId)) {
+      clearInterval(__privateGet(this, _intervalId));
+    }
+    __privateSet(this, _intervalId, void 0);
+    this.emit("empty");
+    if (__privateGet(this, _pending) === 0) {
+      this.emit("idle");
+    }
+    return false;
+  }
+  if (!__privateGet(this, _isPaused)) {
+    const canInitializeInterval = !__privateGet(this, _isIntervalPaused, isIntervalPaused_get);
+    if (__privateGet(this, _doesIntervalAllowAnother, doesIntervalAllowAnother_get) && __privateGet(this, _doesConcurrentAllowAnother, doesConcurrentAllowAnother_get)) {
+      const job = __privateGet(this, _queue2).dequeue();
+      if (!job) {
+        return false;
+      }
+      this.emit("active");
+      job();
+      if (canInitializeInterval) {
+        __privateMethod(this, _initializeIntervalIfNeeded, initializeIntervalIfNeeded_fn).call(this);
+      }
+      return true;
+    }
+  }
+  return false;
+};
+_initializeIntervalIfNeeded = new WeakSet();
+initializeIntervalIfNeeded_fn = function() {
+  if (__privateGet(this, _isIntervalIgnored) || __privateGet(this, _intervalId) !== void 0) {
+    return;
+  }
+  __privateSet(this, _intervalId, setInterval(() => {
+    __privateMethod(this, _onInterval, onInterval_fn).call(this);
+  }, __privateGet(this, _interval)));
+  __privateSet(this, _intervalEnd, Date.now() + __privateGet(this, _interval));
+};
+_onInterval = new WeakSet();
+onInterval_fn = function() {
+  if (__privateGet(this, _intervalCount) === 0 && __privateGet(this, _pending) === 0 && __privateGet(this, _intervalId)) {
+    clearInterval(__privateGet(this, _intervalId));
+    __privateSet(this, _intervalId, void 0);
+  }
+  __privateSet(this, _intervalCount, __privateGet(this, _carryoverConcurrencyCount) ? __privateGet(this, _pending) : 0);
+  __privateMethod(this, _processQueue, processQueue_fn).call(this);
+};
+_processQueue = new WeakSet();
+processQueue_fn = function() {
+  while (__privateMethod(this, _tryToStartAnother, tryToStartAnother_fn).call(this)) {
+  }
+};
+_throwOnAbort = new WeakSet();
+throwOnAbort_fn = async function(signal) {
+  return new Promise((_resolve, reject) => {
+    signal.addEventListener("abort", () => {
+      reject(signal.reason);
+    }, { once: true });
+  });
+};
+_onEvent = new WeakSet();
+onEvent_fn = async function(event, filter) {
+  return new Promise((resolve) => {
+    const listener = () => {
+      if (filter && !filter()) {
+        return;
+      }
+      this.off(event, listener);
+      resolve();
+    };
+    this.on(event, listener);
+  });
+};
+
+// public/iterator plugin info.png
+var iterator_plugin_info_default = "./iterator plugin info-LVNK74FJ.png";
+
+// src/helpers/createDigest.ts
+var import_sha256 = __toESM(require_sha256(), 1);
+var import_crypto_js = __toESM(require_crypto_js(), 1);
+var createDigest = async (input) => {
+  const hash = (0, import_sha256.default)(input);
+  return hash.toString(import_crypto_js.enc.Hex);
+};
+
+// src/helpers/dataValueHelpers.ts
+var isAnyDataValue = (rivet, data) => {
+  return typeof data === "object" && "type" in data && "value" in data && (rivet.isScalarDataType(data.type) || rivet.isArrayDataType(data.type) || rivet.isFunctionDataType(data.type));
+};
+var isObjectDataValue = (rivet, data) => {
+  return typeof data === "object" && data?.type === "object" && typeof data?.value === "object";
+};
+
+// src/nodes/functions/validateGraphInputItem.ts
+var validateGraphInputItem = (rivet, item, graph, missingKeysOut, notDataValueOut) => {
+  let itemKeys = Object.keys(item);
+  if (isObjectDataValue(rivet, item)) {
+    itemKeys = Object.keys(item.value);
+  }
+  let itemValues = Object.values(item);
+  if (isObjectDataValue(rivet, item)) {
+    itemValues = Object.values(item.value);
+  }
+  const graphInputNodes = graph.nodes.filter((f) => f.type === "graphInput");
+  const expectedKeys = graphInputNodes.map((m) => {
+    const id = m.data.id;
+    return id ?? null;
+  }).filter((f) => f != null);
+  if (expectedKeys.some((s) => !itemKeys.includes(s))) {
+    for (const key of expectedKeys) {
+      if (!itemKeys.includes(key)) {
+        missingKeysOut.add(key);
+      }
+    }
+    return true;
+  }
+  const invalidData = itemValues.some((s) => {
+    const isDataType = isAnyDataValue(rivet, s);
+    if (!isDataType) {
+      notDataValueOut.add(s);
+      return true;
+    }
+  });
+  return invalidData;
+};
+
+// src/helpers/lzObject.ts
+var LZString = __toESM(require_lz_string(), 1);
+var compressObject = (obj) => {
+  try {
+    const jsonString = JSON.stringify(obj);
+    return LZString.compressToUTF16(jsonString);
+  } catch (error) {
+    console.error("Error compressing object:", error);
+    throw error;
+  }
+};
+var decompressObject = (compressedData) => {
+  try {
+    const decompressed = LZString.decompressFromUTF16(compressedData);
+    if (!decompressed) {
+      throw new Error("Decompression returned null or undefined.");
+    }
+    return JSON.parse(decompressed);
+  } catch (error) {
+    console.error("Error decompressing object:", error);
+    throw error;
+  }
+};
+
+// src/helpers/cacheStorage.ts
+var cacheNamespaceMap = /* @__PURE__ */ new Map();
+var invalideCacheIfChanges = (cacheStorage, digest) => {
+  if (cacheStorage.revalidationDigest !== digest) {
+    console.log("iterator", "invalidate cache", {
+      cacheStorage,
+      digest,
+      cacheNamespaceMap
+    });
+    cacheStorage.cache.clear();
+    cacheStorage.revalidationDigest = digest;
+  }
+};
+var cleanExpiredCache = async () => {
+  const now = Date.now();
+  cacheNamespaceMap.forEach((value, key) => {
+    if (value.expiryTimestamp < now) {
+      console.log("iterator", "delete cache", {
+        key,
+        value
+      });
+      cacheNamespaceMap.delete(key);
+    }
+  });
+};
+var getCacheStorageForNamespace = (namespace, revalidationDigest) => {
+  let cacheStorage = cacheNamespaceMap.get(namespace);
+  if (!cacheStorage) {
+    cacheStorage = {
+      cache: /* @__PURE__ */ new Map(),
+      expiryTimestamp: Date.now() + 1 * 60 * 60 * 1e3,
+      revalidationDigest
+    };
+    cacheNamespaceMap.set(namespace, cacheStorage);
+  }
+  return cacheStorage;
+};
+var getCachedItem = async (cacheStorage, cacheKey) => {
+  const cachedOutputCompressed = cacheStorage.cache.get(cacheKey);
+  console.log("iterator", "get cache", {
+    cacheKey,
+    cachedOutputCompressed,
+    cacheNamespaceMap
+  });
+  return cachedOutputCompressed ? decompressObject(cachedOutputCompressed) : null;
+};
+var setCachedItem = async (cacheStorage, cacheKey, item) => {
+  const compressedOutput = compressObject(item);
+  cacheStorage.cache.set(cacheKey, compressedOutput);
+  console.log("iterator", "set cache", {
+    cacheKey,
+    compressedOutput,
+    cacheNamespaceMap
+  });
+};
+var createGraphDigest = async (graph) => {
+  return await createDigest(JSON.stringify(graph.nodes.map((m) => m.data)));
+};
+
+// src/nodes/IteratorNode.ts
+var callGraphConnectionIds = {
+  graph: "graph",
+  inputs: "inputs",
+  outputs: "outputs",
+  error: "error"
+};
+var iteratorConnectionIds = {
+  iteratorInputs: "iteratorInputs",
+  iteratorOutputs: "iteratorOutputs",
+  graph: "graph",
+  chunkSize: "chunkSize",
+  error: "error",
+  enableCache: "enableCache"
+};
+function createIteratorNode(rivet) {
+  const iteratorInputOutputsHelperMessage = rivet.dedent`Inputs must be an array of objects to iterate over.  Each object in the array should be a ObjectDataValue \`{type: 'object', value: <graph inputs>}\`; where <graph inputs> is of the format \`{type: 'object', value: {<graph input id>: <input value>}}\` The graph input id should match the graph's input ports.  The input value should be a DataValue. 
+
+  Ouputs will be an array of ObjectDataValue \`type: 'object', value: {<graph output id>: <output value>}\``;
+  const IteratorNodeImpl = {
+    // This should create a new instance of your node type from scratch.
+    create() {
+      const id = rivet.newId();
+      const node = {
+        // Use rivet.newId to generate new IDs for your nodes.
+        id,
+        // This is the default data that your node will store
+        data: {
+          iteratorOutputs: [],
+          chunkSize: 5,
+          useChunkSizeToggle: false,
+          enableCache: false
+        },
+        // This is the default title of your node.
+        title: "Iterator Node",
+        // This must match the type of your node.
+        type: "iteratorNode",
+        // X and Y should be set to 0. Width should be set to a reasonable number so there is no overflow.
+        visualData: {
+          x: 0,
+          y: 0,
+          width: 200
+        }
+      };
+      return node;
+    },
+    // This function should return all input ports for your node, given its data, connections, all other nodes, and the project. The
+    // connection, nodes, and project are for advanced use-cases and can usually be ignored.
+    getInputDefinitions(data, _connections, _nodes, _project) {
+      const inputs = [];
+      inputs.push({
+        id: iteratorConnectionIds.graph,
+        dataType: "graph-reference",
+        title: "Graph",
+        description: "The reference to the graph to call.",
+        required: true
+      });
+      inputs.push({
+        id: iteratorConnectionIds.iteratorInputs,
+        dataType: "object[]",
+        title: "Iterator Inputs Array",
+        description: iteratorInputOutputsHelperMessage,
+        required: true
+      });
+      if (data.useChunkSizeToggle) {
+        inputs.push({
+          id: iteratorConnectionIds.chunkSize,
+          dataType: "number",
+          title: "Chunk Size",
+          description: "The concurrency limit: The number of items to process at the same time.",
+          data: data.chunkSize
+        });
+      }
+      return inputs;
+    },
+    // This function should return all output ports for your node, given its data, connections, all other nodes, and the project. The
+    // connection, nodes, and project are for advanced use-cases and can usually be ignored.
+    getOutputDefinitions(data, _connections, _nodes, _project) {
+      return [
+        {
+          id: iteratorConnectionIds.iteratorOutputs,
+          dataType: "object[]",
+          title: "Iterator Output Array"
+        }
+      ];
+    },
+    // This returns UI information for your node, such as how it appears in the context menu.
+    getUIData() {
+      return {
+        contextMenuTitle: "Iterator Node",
+        group: "Logic",
+        infoBoxBody: rivet.dedent`This is an iterator node.  This node will map over an array and process each item with the graph provided. 
+          
+          ${iteratorInputOutputsHelperMessage}`,
+        infoBoxTitle: "Iterator Node",
+        infoBoxImageUri: iterator_plugin_info_default
+      };
+    },
+    // This function defines all editors that appear when you edit your node.
+    getEditors(_data) {
+      return [
+        {
+          type: "number",
+          dataKey: "chunkSize",
+          label: "Chunk size",
+          defaultValue: 1,
+          helperMessage: "The number of items to process at the same time.  This will help process arrays quickly while not overloading the system.  Recommended to keep this below 10 for subgraphs that make network calls or stream model responses.",
+          useInputToggleDataKey: "useChunkSizeToggle"
+        },
+        {
+          type: "toggle",
+          dataKey: "enableCache",
+          label: "Cache Execution",
+          helperMessage: rivet.dedent`If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs.`
+        }
+      ];
+    },
+    // This function returns the body of the node when it is rendered on the graph. You should show
+    // what the current data of the node is in some way that is useful at a glance.
+    getBody(data) {
+      return rivet.dedent`Iterator Node
+				Chunk Size: ${data.chunkSize}
+				Enable Cache: ${data.enableCache}
+      `;
+    },
+    // This is the main processing function for your node. It can do whatever you like, but it must return
+    // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
+    // must also correspond to the output definitions you defined in the getOutputDefinitions function.
+    async process(data, inputData, context) {
+      const outputs = {};
+      let abortIteration = false;
+      context.signal.addEventListener("abort", () => {
+        abortIteration = true;
+      });
+      const graphRef = rivet.coerceType(inputData[iteratorConnectionIds.graph], "graph-reference");
+      const iteratorInputs = rivet.coerceType(inputData[iteratorConnectionIds.iteratorInputs], "object[]");
+      let chunkSize = rivet.coerceTypeOptional(inputData[iteratorConnectionIds.chunkSize], "number") ?? data.chunkSize;
+      chunkSize = chunkSize > 0 ? chunkSize : 1;
+      const allItemsAreObjects = iteratorInputs.some((s) => typeof s !== "object");
+      if (allItemsAreObjects) {
+        outputs[iteratorConnectionIds.iteratorOutputs] = {
+          type: "control-flow-excluded",
+          value: void 0
+        };
+        outputs[iteratorConnectionIds.error] = {
+          type: "string",
+          value: rivet.dedent`Input array must be an array of objects.  Each object needs to be a DataValue.  A graph needs an object with keys that match the graph's input ports`
+        };
+        return outputs;
+      }
+      const graph = context.project.graphs[graphRef.graphId];
+      const revalidationDigest = await createGraphDigest(graph);
+      const cacheNamespace = graphRef.graphId;
+      const enableCache = data.enableCache && cacheNamespace != null;
+      const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
+      console.log("iterator", "cacheStorage.cache", cacheStorage.cache);
+      invalideCacheIfChanges(cacheStorage, revalidationDigest);
+      const missingKeys = /* @__PURE__ */ new Set();
+      const notDataValue = /* @__PURE__ */ new Set();
+      const invalidInputs = iteratorInputs.some((item) => {
+        return validateGraphInputItem(rivet, item, graph, missingKeys, notDataValue);
+      });
+      if (invalidInputs) {
+        outputs[iteratorConnectionIds.iteratorOutputs] = {
+          type: "control-flow-excluded",
+          value: void 0
+        };
+        let errorMessage = "Input validation error::";
+        if (missingKeys.size > 0) {
+          errorMessage += `Missing keys required for graph: 
+            ${Array.from(missingKeys).map((key) => key).join("; ")}`;
+        }
+        if (notDataValue.size > 0) {
+          errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue: 
+            ${Array.from(notDataValue).map((value) => JSON.stringify(value)).join("; ")}`;
+        }
+        outputs[iteratorConnectionIds.error] = {
+          type: "string",
+          value: errorMessage
+        };
+        return outputs;
+      }
+      const queue = new PQueue({ concurrency: chunkSize });
+      const addToQueue = iteratorInputs.map((item, index) => {
+        return queue.add(async () => {
+          let itemOutput = {};
+          try {
+            if (!abortIteration) {
+              const node = rivet.callGraphNode.impl.create();
+              const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
+              let itemDataValue = {
+                type: "object",
+                value: item
+              };
+              if (isObjectDataValue(rivet, item)) {
+                itemDataValue = item;
+              }
+              const iteratorInputData = {
+                [callGraphConnectionIds.graph]: inputData[iteratorConnectionIds.graph],
+                [callGraphConnectionIds.inputs]: itemDataValue
+              };
+              if (enableCache) {
+                const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
+                console.log("iterator", "key", {
+                  json: JSON.stringify(iteratorInputData),
+                  cacheKey
+                });
+                const cachedValue = await getCachedItem(cacheStorage, cacheKey);
+                if (cachedValue != null) {
+                  return cachedValue;
+                }
+              }
+              itemOutput = await impl.process(iteratorInputData, context);
+              if (enableCache) {
+                const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
+                setCachedItem(cacheStorage, cacheKey, itemOutput);
+              }
+            } else {
+              itemOutput[callGraphConnectionIds.outputs] = {
+                type: "control-flow-excluded",
+                value: void 0
+              };
+              itemOutput[callGraphConnectionIds.error] = {
+                type: "string",
+                value: `Aborted ${graphRef.graphName}`
+              };
+            }
+          } catch (err) {
+            itemOutput[callGraphConnectionIds.outputs] = {
+              type: "control-flow-excluded",
+              value: void 0
+            };
+            itemOutput[callGraphConnectionIds.error] = {
+              type: "string",
+              value: `Error running graph ${graphRef.graphName}.  Inputs: ${JSON.stringify(item)}  Message: ${rivet.getError(err).message}`
+            };
+            abortIteration = true;
+          }
+          return itemOutput;
+        });
+      });
+      const iteratorOutputs = await Promise.all(addToQueue);
+      await queue.onIdle();
+      if (enableCache) {
+        void cleanExpiredCache();
+      }
+      const errorInIteratorOutputs = iteratorOutputs.some(
+        (f) => f[callGraphConnectionIds.outputs]?.type === "control-flow-excluded"
+      );
+      if (errorInIteratorOutputs) {
+        outputs[iteratorConnectionIds.iteratorOutputs] = {
+          type: "control-flow-excluded",
+          value: void 0
+        };
+        outputs[iteratorConnectionIds.error] = {
+          type: "string",
+          value: iteratorOutputs.filter((f) => f[callGraphConnectionIds.outputs]?.type === "control-flow-excluded").map((m, i) => `ItemIndex:${i}:: ${m[callGraphConnectionIds.error]?.value}`).join(";\n  ")
+        };
+        return outputs;
+      }
+      outputs[iteratorConnectionIds.iteratorOutputs] = {
+        type: "object[]",
+        value: iteratorOutputs
+      };
+      return outputs;
+    }
+  };
+  const iteratorNode = rivet.pluginNodeDefinition(IteratorNodeImpl, "Iterator Node");
+  return iteratorNode;
 }
 
 // src/index.ts

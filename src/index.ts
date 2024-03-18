@@ -3,9 +3,9 @@
 // a parameter, and you can use it to access any Rivet functionality you need.
 import type { NodeId, RivetPlugin, RivetPluginInitializer } from '@ironclad/rivet-core';
 
-import { createIteratorNode } from './nodes/IteratorNode.js';
-import { createPineconeSearchNode } from './nodes/PineconeSearchNode';
+import { createPineconeSearchNode } from './nodes/PineconeSearchNode.js';
 import { createPineconeUpsertNode } from './nodes/PineconeUpsertNode.js';
+import { createIteratorNode } from './nodes/IteratorNode.js';
 
 // A Rivet plugin must default export a plugin initializer function. This takes in the Rivet library as its
 // only parameter. This function must return a valid RivetPlugin object.

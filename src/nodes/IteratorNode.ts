@@ -22,16 +22,27 @@ import type {
 	isScalarDataType,
 	isArrayDataType,
 	isFunctionDataType,
-	NodeGraph,
 	LooseDataValue,
 	DataValue,
+	GraphReferenceNode,
+	NodeGraph,
 } from '@ironclad/rivet-core';
 import PQueue from 'p-queue';
 
 import nodeImage from '../../public/iterator plugin info.png';
-import { createDigest } from '../helpers/createDigest';
-import { decompressObject, compressObject } from '../helpers/lzObject';
-import { configKeys } from '../models/config';
+import { createDigest } from '../helpers/createDigest.js';
+import { decompressObject, compressObject } from '../helpers/lzObject.js';
+import { configKeys } from '../models/config.js';
+import { isObjectDataValue } from '../helpers/dataValueHelpers.js';
+import { validateGraphInputItem } from './functions/validateGraphInputItem.js';
+import {
+	getCacheStorageForNamespace,
+	invalideCacheIfChanges,
+	cleanExpiredCache,
+	getCachedItem,
+	setCachedItem,
+	createGraphDigest,
+} from '../helpers/cacheStorage';
 
 const callGraphConnectionIds = {
 	graph: 'graph' as PortId,
@@ -46,7 +57,7 @@ const iteratorConnectionIds = {
 	graph: 'graph' as PortId,
 	chunkSize: 'chunkSize' as PortId,
 	error: 'error' as PortId,
-	hasCache: 'hasCache' as PortId,
+	enableCache: 'enableCache' as PortId,
 } as const;
 
 // This defines your new type of node.
@@ -58,27 +69,9 @@ export type IteratorNodeData = {
 		outputs: ObjectDataValue;
 	}[];
 	chunkSize: number;
-	hasCache: boolean;
+	enableCache: boolean;
 	useChunkSizeToggle: boolean;
 };
-
-/**
- * The id is the graphId associated with the call graph
- */
-const iteratorCacheStorage: Map<
-	string,
-	{
-		/**
-		 * Compressed Objects are stored
-		 */
-		cache: Map<string, string>;
-		expiryTimestamp: number;
-		/**
-		 * Create a graphSnapshot sowe can invalidate cache
-		 */
-		graphSnapshot?: string;
-	}
-> = new Map();
 
 // Make sure you export functions that take in the Rivet library, so that you do not
 // import the entire Rivet core library in your plugin.
@@ -104,7 +97,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 					iteratorOutputs: [],
 					chunkSize: 5,
 					useChunkSizeToggle: false,
-					hasCache: false,
+					enableCache: false,
 				} satisfies IteratorNodeData,
 
 				// This is the default title of your node.
@@ -206,7 +199,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 				},
 				{
 					type: 'toggle',
-					dataKey: 'hasCache',
+					dataKey: 'enableCache',
 					label: 'Cache Execution',
 					helperMessage: rivet.dedent`If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs.`,
 				},
@@ -218,7 +211,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 		getBody(data: IteratorNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
 			return rivet.dedent`Iterator Node
 				Chunk Size: ${data.chunkSize}
-				Has Cache: ${data.hasCache}
+				Enable Cache: ${data.enableCache}
       `;
 		},
 
@@ -259,25 +252,21 @@ export function createIteratorNode(rivet: typeof Rivet) {
 			 * get the graph
 			 */
 			const graph = context.project.graphs[graphRef.graphId];
-			const graphSnapshot = await createDigest(JSON.stringify(graph.nodes.map((m) => m.data)));
-			const cacheId = graphRef.graphId as string;
-			console.log('iterator', { data, cacheId, iteratorCacheStorage });
-			const hasCache = data.hasCache && cacheId != null;
+			const revalidationDigest = await createGraphDigest(graph);
+			const cacheNamespace = graphRef.graphId as string;
+			const enableCache = data.enableCache && cacheNamespace != null;
 			/**
 			 * cache storage
 			 */
-			const cacheStorage = iteratorCacheStorage.get(cacheId) ?? {
-				cache: new Map<string, string>(),
-				expiryTimestamp: Date.now() + 1 * 60 * 60 * 1000 /** 1 hour */,
-				graphSnapshot,
-			};
-			invalideCacheIfChanges(cacheStorage, graphSnapshot);
+			const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
+			console.log('iterator', 'cacheStorage.cache', cacheStorage.cache);
+			invalideCacheIfChanges(cacheStorage, revalidationDigest);
 
 			// validate input items to make sure they have all  keys of the  graph's input ports
 			const missingKeys = new Set<string>();
 			const notDataValue = new Set<string>();
-			const invalidInputs = iteratorInputs.some((s) => {
-				return validateInputItem(s, graph, missingKeys, notDataValue);
+			const invalidInputs = iteratorInputs.some((item) => {
+				return validateGraphInputItem(rivet, item, graph, missingKeys, notDataValue);
 			});
 			// console.log("iterator", "invalidInputs", { invalidInputs });
 			if (invalidInputs) {
@@ -321,7 +310,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 								type: 'object',
 								value: item as Record<string, unknown>,
 							};
-							if (isObjectDataValue(item)) {
+							if (isObjectDataValue(rivet, item)) {
 								itemDataValue = item;
 							}
 
@@ -330,30 +319,22 @@ export function createIteratorNode(rivet: typeof Rivet) {
 								[callGraphConnectionIds.inputs]: itemDataValue,
 							};
 
-							if (hasCache) {
+							if (enableCache) {
 								const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
-								const cachedOutputCompressed = cacheStorage.cache.get(cacheKey);
-								if (cachedOutputCompressed) {
-									console.log('iterator', 'get cache', {
-										cacheKey,
-										itemDataValue,
-										cachedOutputCompressed,
-										iteratorCacheStorage,
-									});
-									return decompressObject<Outputs>(cachedOutputCompressed);
+								console.log('iterator', 'key', {
+									json: JSON.stringify(iteratorInputData),
+									cacheKey,
+								});
+								const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
+
+								if (cachedValue != null) {
+									return cachedValue;
 								}
 							}
 							itemOutput = await impl.process(iteratorInputData, context);
-
-							if (hasCache) {
+							if (enableCache) {
 								const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
-								console.log('iterator', 'set cache', {
-									cacheKey,
-									itemOutput,
-									itemDataValue,
-									iteratorCacheStorage,
-								});
-								cacheStorage.cache.set(cacheKey, compressObject(itemOutput));
+								setCachedItem(cacheStorage, cacheKey, itemOutput);
 							}
 						} else {
 							/**
@@ -390,12 +371,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 			const iteratorOutputs = await Promise.all(addToQueue);
 			await queue.onIdle();
 
-			if (hasCache) {
-				console.log('iterator', 'set cacheStorage', {
-					cacheId,
-					cacheStorage,
-				});
-				iteratorCacheStorage.set(cacheId, cacheStorage);
+			if (enableCache) {
 				void cleanExpiredCache();
 			}
 
@@ -424,125 +400,6 @@ export function createIteratorNode(rivet: typeof Rivet) {
 			};
 			return outputs;
 		},
-	};
-
-	/******************************************
-	 * Helper Functions
-	 */
-	/**
-	 * Checks if the data is a DataValue
-	 * @param data
-	 * @returns
-	 */
-
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	const isAnyDataValue = (data: any): data is { type: string; value: any } => {
-		return (
-			typeof data === 'object' &&
-			'type' in data &&
-			'value' in data &&
-			(rivet.isScalarDataType(data.type) || rivet.isArrayDataType(data.type) || rivet.isFunctionDataType(data.type))
-		);
-	};
-	/**
-	 * Checks if the data is a ObjectDataValue
-	 * @param data
-	 * @returns
-	 */
-
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	const isObjectDataValue = (data: any): data is ObjectDataValue => {
-		return typeof data === 'object' && data?.type === 'object' && typeof data?.value === 'object';
-	};
-
-	const invalideCacheIfChanges = (
-		cacheStorage: {
-			cache: Map<string, string>;
-			expiryTimestamp: number;
-			/**
-			 * Create a graphSnapshot sowe can invalidate cache
-			 */
-			graphSnapshot?: string | undefined;
-		},
-		graphSnapshot: string
-	) => {
-		if (cacheStorage.graphSnapshot !== graphSnapshot) {
-			console.log('iterator', 'invalidate cache', {
-				cacheStorage,
-				graphSnapshot,
-			});
-			cacheStorage.cache.clear();
-			cacheStorage.graphSnapshot = graphSnapshot;
-		}
-	};
-
-	const validateInputItem = (
-		item: Record<string, unknown>,
-		graph: NodeGraph,
-		missingKeysOut: Set<string>,
-		notDataValueOut: Set<string>
-	) => {
-		let itemKeys = Object.keys(item);
-		if (isObjectDataValue(item)) {
-			itemKeys = Object.keys(item.value);
-		}
-
-		let itemValues = Object.values(item);
-		if (isObjectDataValue(item)) {
-			itemValues = Object.values(item.value);
-		}
-
-		/**
-		 * expected keys are the ids of the graph's input nodes, if they exist
-		 */
-
-		const graphInputNodes = graph.nodes.filter((f) => f.type === 'graphInput');
-		const expectedKeys = graphInputNodes
-			.map((m) => {
-				const id = (m.data as Record<string, unknown>).id as string;
-				return id ?? null;
-			})
-			.filter((f) => f != null);
-
-		/**
-		 * if expected keys aren't in the item keys, then the item is invalid
-		 */
-		if (expectedKeys.some((s) => !itemKeys.includes(s))) {
-			for (const key of expectedKeys) {
-				if (!itemKeys.includes(key)) {
-					missingKeysOut.add(key);
-				}
-			}
-			return true;
-		}
-
-		const invalidData = itemValues.some((s: unknown) => {
-			/**
-			 * if the item values aren't DataValues, then the item is invalid
-			 */
-			const isDataType = isAnyDataValue(s);
-			if (!isDataType) {
-				/**
-				 * save the key that isn't a DataValue
-				 */
-				notDataValueOut.add(s as string);
-				return true;
-			}
-		});
-		return invalidData;
-	};
-
-	const cleanExpiredCache = async (): Promise<void> => {
-		const now = Date.now();
-		iteratorCacheStorage.forEach((value, key) => {
-			if (value.expiryTimestamp < now) {
-				console.log('iterator', 'delete cache', {
-					key,
-					value,
-				});
-				iteratorCacheStorage.delete(key);
-			}
-		});
 	};
 
 	// Once a node is defined, you must pass it to rivet.pluginNodeDefinition, which will return a valid
