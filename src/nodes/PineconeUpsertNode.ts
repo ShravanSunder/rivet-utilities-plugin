@@ -62,7 +62,6 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 	// Define the implementation of the node
 	const PineconeUpsertNodeImpl: PluginNodeImpl<PineconeUpsertNode> = {
 		create(): PineconeUpsertNode {
-			console.log('pinecone', 'creating pinecone upsert node');
 			return {
 				id: rivet.newId() as NodeId,
 				type: 'pineconeUpsertNode',
@@ -140,7 +139,6 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 		},
 
 		getOutputDefinitions(): NodeOutputDefinition[] {
-			console.log('pinecone', 'getting outputs');
 			return [
 				{
 					id: pineconeUpsertIds.ok,
@@ -188,14 +186,12 @@ export function createPineconeUpsertNode(rivet: typeof Rivet) {
 		// This function returns the body of the node when it is rendered on the graph. You should show
 		// what the current data of the node is in some way that is useful at a glance.
 		getBody(data: PineconeUpsertNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
-			console.log('pinecone', 'outputs body');
 			return rivet.dedent`Collection Url: ${data.useCollectionUrlInput ? '(using input)' : data.collectionUrl}
 				Namespace: ${data.useNamespaceInput ? '(using input)' : data.namespace ?? ''}
 			`;
 		},
 
 		async process(data: PineconeUpsertNodeData, inputData: Inputs, context: InternalProcessContext): Promise<Outputs> {
-			console.log('pinecone', 'process');
 			try {
 				const apiKey = context.getPluginConfig('pineconeApiKey');
 				const output: Outputs = {};

@@ -317,14 +317,11 @@ export function createIteratorNode(rivet: typeof Rivet) {
 							};
 
 							if (enableCache) {
-								console.log('Iterator: Checking cache', {
-									cache: cacheStorage.cache,
-								});
 								const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
 								const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 
 								if (cachedValue != null) {
-									console.log('Iterator: Using cached value');
+									console.log(`Iterator ${index}: Using cached value`);
 									return cachedValue;
 								}
 							}

@@ -42,6 +42,7 @@ const pineconeSearchIds = {
 	filter: 'filter' as PortId,
 	usage: 'usage' as PortId,
 	sparseVector: 'sparseVector' as PortId,
+	alpha: 'alpha' as PortId,
 } as const;
 
 export type PineconeSearchNode = ChartNode<'pineconeSearchNode', PineconeSearchNodeData>;
@@ -51,6 +52,8 @@ export type PineconeSearchNodeData = {
 	useTopKInput?: boolean;
 	collectionUrl: string;
 	useCollectionUrlInput?: boolean;
+	alpha: number;
+	useAlphaInput?: boolean;
 	namespace: string;
 	useNamespaceInput?: boolean;
 	matches: PineconeQueryResult['matches'];
@@ -61,7 +64,6 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 	// Define the implementation of the node
 	const PineconeSearchNodeImpl: PluginNodeImpl<PineconeSearchNode> = {
 		create(): PineconeSearchNode {
-			console.log('pinecone', 'creating pinecone search node');
 			return {
 				id: rivet.newId() as NodeId,
 				type: 'pineconeSearchNode',
@@ -69,6 +71,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				visualData: { x: 0, y: 0, width: 200 },
 				data: {
 					topK: 10,
+					alpha: 0.5,
 					collectionUrl: '',
 					useTopKInput: false,
 					useCollectionUrlInput: false,
@@ -115,6 +118,15 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 				});
 			}
 
+			if (data.useAlphaInput) {
+				inputs.push({
+					id: pineconeSearchIds.alpha,
+					title: 'Alpha',
+					dataType: 'number',
+					required: true,
+				});
+			}
+
 			inputs.push({
 				id: pineconeSearchIds.filter,
 				title: 'Filter',
@@ -133,7 +145,6 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 		},
 
 		getOutputDefinitions(): NodeOutputDefinition[] {
-			console.log('pinecone', 'getting outputs');
 			return [
 				{
 					id: pineconeSearchIds.matches,
@@ -183,20 +194,28 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					helperMessage: 'The namespace to search',
 					useInputToggleDataKey: 'useNamespaceInput',
 				},
+				{
+					type: 'number',
+					dataKey: 'alpha',
+					label: 'Alpha',
+					defaultValue: 0.5,
+					helperMessage:
+						'Alpha value for hybrid search. 0.5 is a balanced weighting. 0 is fully weighted to the dense vector.  1 is fully weighted to the sparse vector. (0 < alpha < 1)',
+					useInputToggleDataKey: 'useAlphaInput',
+				},
 			];
 		},
 		// This function returns the body of the node when it is rendered on the graph. You should show
 		// what the current data of the node is in some way that is useful at a glance.
 		getBody(data: PineconeSearchNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
-			console.log('pinecone', 'outputs body');
 			return rivet.dedent`TopK: ${data.useTopKInput ? '(using input)' : data.topK}
+			  Alpha: ${data.useAlphaInput ? '(using input)' : data.alpha}
 				Collection Url: ${data.useCollectionUrlInput ? '(using input)' : data.collectionUrl}
 				Namespace: ${data.useNamespaceInput ? '(using input)' : data.namespace ?? ''}
     	`;
 		},
 
 		async process(data: PineconeSearchNodeData, inputData: Inputs, context: InternalProcessContext): Promise<Outputs> {
-			console.log('pinecone', 'process');
 			try {
 				const apiKey = context.getPluginConfig('pineconeApiKey');
 				const output: Outputs = {};
@@ -218,6 +237,10 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					.nullish()
 					.parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], 'object'));
 
+				const alpha = data.useAlphaInput
+					? rivet.coerceType(inputData[pineconeSearchIds.alpha], 'number')
+					: data.alpha ?? 0.5;
+
 				if (!apiKey) {
 					output[pineconeSearchIds.matches] = {
 						type: 'control-flow-excluded',
@@ -235,6 +258,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					collectionUrl: collectionUrl,
 					topK: topK,
 					namespace: namespace,
+					alpha: alpha,
 					vector: vector,
 					filter: filter,
 					...(sparseVector ? { sparseVector: sparseVector } : null),

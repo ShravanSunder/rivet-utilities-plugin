@@ -7312,6 +7312,11 @@ var PineconeVectorDatabase = class {
   async query(params) {
     const collectionDetails = getCollection(params.collectionUrl);
     const req = params;
+    if ("sparseVector" in params && "vector" in params && params.sparseVector != null) {
+      const transform = this.hybridScoreWeighting(params.vector, params.sparseVector, params.alpha);
+      req.vector = transform.vector;
+      req.sparseVector = transform.sparseVector;
+    }
     const response = await fetch(`${collectionDetails.host}/query`, {
       method: "POST",
       body: JSON.stringify({
@@ -11103,12 +11108,12 @@ var pineconeSearchIds = {
   namespace: "namespace",
   filter: "filter",
   usage: "usage",
-  sparseVector: "sparseVector"
+  sparseVector: "sparseVector",
+  alpha: "alpha"
 };
 function createPineconeSearchNode(rivet) {
   const PineconeSearchNodeImpl = {
     create() {
-      console.log("pinecone", "creating pinecone search node");
       return {
         id: rivet.newId(),
         type: "pineconeSearchNode",
@@ -11116,6 +11121,7 @@ function createPineconeSearchNode(rivet) {
         visualData: { x: 0, y: 0, width: 200 },
         data: {
           topK: 10,
+          alpha: 0.5,
           collectionUrl: "",
           useTopKInput: false,
           useCollectionUrlInput: false,
@@ -11156,6 +11162,14 @@ function createPineconeSearchNode(rivet) {
           required: true
         });
       }
+      if (data.useAlphaInput) {
+        inputs.push({
+          id: pineconeSearchIds.alpha,
+          title: "Alpha",
+          dataType: "number",
+          required: true
+        });
+      }
       inputs.push({
         id: pineconeSearchIds.filter,
         title: "Filter",
@@ -11171,7 +11185,6 @@ function createPineconeSearchNode(rivet) {
       return inputs;
     },
     getOutputDefinitions() {
-      console.log("pinecone", "getting outputs");
       return [
         {
           id: pineconeSearchIds.matches,
@@ -11218,20 +11231,27 @@ function createPineconeSearchNode(rivet) {
           label: "Namespace",
           helperMessage: "The namespace to search",
           useInputToggleDataKey: "useNamespaceInput"
+        },
+        {
+          type: "number",
+          dataKey: "alpha",
+          label: "Alpha",
+          defaultValue: 0.5,
+          helperMessage: "Alpha value for hybrid search. 0.5 is a balanced weighting. 0 is fully weighted to the dense vector.  1 is fully weighted to the sparse vector. (0 < alpha < 1)",
+          useInputToggleDataKey: "useAlphaInput"
         }
       ];
     },
     // This function returns the body of the node when it is rendered on the graph. You should show
     // what the current data of the node is in some way that is useful at a glance.
     getBody(data) {
-      console.log("pinecone", "outputs body");
       return rivet.dedent`TopK: ${data.useTopKInput ? "(using input)" : data.topK}
+			  Alpha: ${data.useAlphaInput ? "(using input)" : data.alpha}
 				Collection Url: ${data.useCollectionUrlInput ? "(using input)" : data.collectionUrl}
 				Namespace: ${data.useNamespaceInput ? "(using input)" : data.namespace ?? ""}
     	`;
     },
     async process(data, inputData, context) {
-      console.log("pinecone", "process");
       try {
         const apiKey = context.getPluginConfig("pineconeApiKey");
         const output = {};
@@ -11241,6 +11261,7 @@ function createPineconeSearchNode(rivet) {
         const vector = rivet.coerceType(inputData[pineconeSearchIds.vector], "vector");
         const filter = z.record(z.unknown()).parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.filter], "object") ?? {});
         const sparseVector = pineconeSparseVectorSchema.nullish().parse(rivet.coerceTypeOptional(inputData[pineconeSearchIds.sparseVector], "object"));
+        const alpha = data.useAlphaInput ? rivet.coerceType(inputData[pineconeSearchIds.alpha], "number") : data.alpha ?? 0.5;
         if (!apiKey) {
           output[pineconeSearchIds.matches] = {
             type: "control-flow-excluded",
@@ -11257,6 +11278,7 @@ function createPineconeSearchNode(rivet) {
           collectionUrl,
           topK,
           namespace,
+          alpha,
           vector,
           filter,
           ...sparseVector ? { sparseVector } : null,
@@ -11321,7 +11343,6 @@ var pineconeUpsertIds = {
 function createPineconeUpsertNode(rivet) {
   const PineconeUpsertNodeImpl = {
     create() {
-      console.log("pinecone", "creating pinecone upsert node");
       return {
         id: rivet.newId(),
         type: "pineconeUpsertNode",
@@ -11390,7 +11411,6 @@ function createPineconeUpsertNode(rivet) {
       return inputs;
     },
     getOutputDefinitions() {
-      console.log("pinecone", "getting outputs");
       return [
         {
           id: pineconeUpsertIds.ok,
@@ -11436,13 +11456,11 @@ function createPineconeUpsertNode(rivet) {
     // This function returns the body of the node when it is rendered on the graph. You should show
     // what the current data of the node is in some way that is useful at a glance.
     getBody(data) {
-      console.log("pinecone", "outputs body");
       return rivet.dedent`Collection Url: ${data.useCollectionUrlInput ? "(using input)" : data.collectionUrl}
 				Namespace: ${data.useNamespaceInput ? "(using input)" : data.namespace ?? ""}
 			`;
     },
     async process(data, inputData, context) {
-      console.log("pinecone", "process");
       try {
         const apiKey = context.getPluginConfig("pineconeApiKey");
         const output = {};
@@ -12350,13 +12368,10 @@ function createIteratorNode(rivet) {
                 [callGraphConnectionIds.inputs]: itemDataValue
               };
               if (enableCache) {
-                console.log("Iterator: Checking cache", {
-                  cache: cacheStorage.cache
-                });
                 const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
                 const cachedValue = await getCachedItem(cacheStorage, cacheKey);
                 if (cachedValue != null) {
-                  console.log("Iterator: Using cached value");
+                  console.log(`Iterator ${index}: Using cached value`);
                   return cachedValue;
                 }
               }

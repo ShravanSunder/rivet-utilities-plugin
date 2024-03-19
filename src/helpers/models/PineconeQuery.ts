@@ -11,6 +11,7 @@ const pineconeQueryBaseSchema = z.object({
 	includeMetadata: z.boolean(),
 	namespace: z.string(),
 	filter: z.record(z.unknown()),
+	alpha: z.number().refine((n) => n >= 0 && n <= 1, { message: 'Alpha must be between 0 and 1' }),
 });
 
 export const pineconeQueryWithVectorSchema = pineconeQueryBaseSchema.extend({
