@@ -16,27 +16,9 @@ export type CacheStorage = {
 /**
  * The id is the graphId associated with the call graph
  */
-const cacheNamespaceMap: Map<string, CacheStorage> = new Map();
+const storageMap: Map<string, CacheStorage> = new Map();
 
 const DEBUG_CACHE = false;
-
-/**
- * Invalidates the cache if the digest has changed.
- * @param cacheStorage - The cache storage object.
- * @param digest - The digest to compare against the cache storage's revalidation digest.
- */
-export const invalideCacheIfChanges = (cacheStorage: CacheStorage, digest: string) => {
-	if (cacheStorage.revalidationDigest !== digest) {
-		if (DEBUG_CACHE)
-			console.log('iterator', 'invalidate cache', {
-				cacheStorage,
-				digest,
-				cacheNamespaceMap,
-			});
-		cacheStorage.cache.clear();
-		cacheStorage.revalidationDigest = digest;
-	}
-};
 
 /**
  * Cleans up expired cache entries.
@@ -44,14 +26,14 @@ export const invalideCacheIfChanges = (cacheStorage: CacheStorage, digest: strin
  */
 export const cleanExpiredCache = async (): Promise<void> => {
 	const now = Date.now();
-	cacheNamespaceMap.forEach((value, key) => {
+	storageMap.forEach((value, key) => {
 		if (value.expiryTimestamp < now) {
 			if (DEBUG_CACHE)
 				console.log('iterator', 'delete cache', {
 					key,
 					value,
 				});
-			cacheNamespaceMap.delete(key);
+			storageMap.delete(key);
 		}
 	});
 };
@@ -66,16 +48,27 @@ export const cleanExpiredCache = async (): Promise<void> => {
  * @returns The cache storage object for the specified namespace.
  */
 export const getCacheStorageForNamespace = (namespace: string, revalidationDigest: string): CacheStorage => {
-	let cacheStorage = cacheNamespaceMap.get(namespace);
-	if (!cacheStorage) {
+	let cacheStorage = storageMap.get(namespace);
+	if (cacheStorage?.cache == null) {
 		cacheStorage = {
 			cache: new Map<string, string>(),
 			expiryTimestamp: Date.now() + 3 * 60 * 60 * 1000 /** 3 hours */,
 			revalidationDigest,
 		};
-		cacheNamespaceMap.set(namespace, cacheStorage);
 	}
 
+	if (cacheStorage.revalidationDigest !== revalidationDigest) {
+		cacheStorage.cache.clear();
+		if (DEBUG_CACHE)
+			console.log('iterator', 'invalidate cache check', cacheStorage.cache, {
+				cacheStorage,
+				revalidationDigest,
+				storageMap,
+			});
+		cacheStorage.revalidationDigest = revalidationDigest;
+	}
+
+	storageMap.set(namespace, cacheStorage);
 	return cacheStorage;
 };
 
@@ -84,11 +77,11 @@ export const getCachedItem = async <T extends Record<string, unknown>>(
 	cacheKey: string
 ): Promise<T | null> => {
 	const cachedOutputCompressed = cacheStorage.cache.get(cacheKey);
-	if (DEBUG_CACHE)
+	if (DEBUG_CACHE && cachedOutputCompressed)
 		console.log('iterator', 'get cache', {
 			cacheKey,
 			cachedOutputCompressed,
-			cacheNamespaceMap,
+			storageMap,
 		});
 
 	return cachedOutputCompressed ? decompressObject<T>(cachedOutputCompressed) : null;
@@ -105,7 +98,7 @@ export const setCachedItem = async <T extends Record<string, unknown>>(
 		console.log('iterator', 'set cache', {
 			cacheKey,
 			compressedOutput,
-			cacheNamespaceMap,
+			storageMap,
 		});
 };
 
@@ -115,5 +108,13 @@ export const setCachedItem = async <T extends Record<string, unknown>>(
  * @returns A Promise that resolves to the digest of the graph.
  */
 export const createGraphDigest = async (graph: NodeGraph) => {
-	return await createDigest(JSON.stringify(graph.nodes.map((m) => m.data)));
+	const digest = await createDigest(
+		JSON.stringify({ nodes: graph.nodes.map((m) => m.data), connections: graph.connections })
+	);
+	if (DEBUG_CACHE)
+		console.log('iterator', 'create graph digest', {
+			graph,
+			digest,
+		});
+	return digest;
 };

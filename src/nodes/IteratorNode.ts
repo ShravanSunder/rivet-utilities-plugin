@@ -37,7 +37,6 @@ import { isObjectDataValue } from '../helpers/dataValueHelpers.js';
 import { validateGraphInputItem } from './functions/validateGraphInputItem.js';
 import {
 	getCacheStorageForNamespace,
-	invalideCacheIfChanges,
 	cleanExpiredCache,
 	getCachedItem,
 	setCachedItem,
@@ -259,7 +258,6 @@ export function createIteratorNode(rivet: typeof Rivet) {
 			 * cache storage
 			 */
 			const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
-			invalideCacheIfChanges(cacheStorage, revalidationDigest);
 
 			// validate input items to make sure they have all  keys of the  graph's input ports
 			const missingKeys = new Set<string>();
@@ -319,6 +317,9 @@ export function createIteratorNode(rivet: typeof Rivet) {
 							};
 
 							if (enableCache) {
+								console.log('Iterator: Checking cache', {
+									cache: cacheStorage.cache,
+								});
 								const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
 								const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 

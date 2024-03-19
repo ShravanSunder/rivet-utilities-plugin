@@ -12081,52 +12081,50 @@ var decompressObject = (compressedData) => {
 };
 
 // src/helpers/cacheStorage.ts
-var cacheNamespaceMap = /* @__PURE__ */ new Map();
+var storageMap = /* @__PURE__ */ new Map();
 var DEBUG_CACHE = false;
-var invalideCacheIfChanges = (cacheStorage, digest) => {
-  if (cacheStorage.revalidationDigest !== digest) {
-    if (DEBUG_CACHE)
-      console.log("iterator", "invalidate cache", {
-        cacheStorage,
-        digest,
-        cacheNamespaceMap
-      });
-    cacheStorage.cache.clear();
-    cacheStorage.revalidationDigest = digest;
-  }
-};
 var cleanExpiredCache = async () => {
   const now = Date.now();
-  cacheNamespaceMap.forEach((value, key) => {
+  storageMap.forEach((value, key) => {
     if (value.expiryTimestamp < now) {
       if (DEBUG_CACHE)
         console.log("iterator", "delete cache", {
           key,
           value
         });
-      cacheNamespaceMap.delete(key);
+      storageMap.delete(key);
     }
   });
 };
 var getCacheStorageForNamespace = (namespace, revalidationDigest) => {
-  let cacheStorage = cacheNamespaceMap.get(namespace);
-  if (!cacheStorage) {
+  let cacheStorage = storageMap.get(namespace);
+  if (cacheStorage?.cache == null) {
     cacheStorage = {
       cache: /* @__PURE__ */ new Map(),
       expiryTimestamp: Date.now() + 3 * 60 * 60 * 1e3,
       revalidationDigest
     };
-    cacheNamespaceMap.set(namespace, cacheStorage);
   }
+  if (cacheStorage.revalidationDigest !== revalidationDigest) {
+    cacheStorage.cache.clear();
+    if (DEBUG_CACHE)
+      console.log("iterator", "invalidate cache check", cacheStorage.cache, {
+        cacheStorage,
+        revalidationDigest,
+        storageMap
+      });
+    cacheStorage.revalidationDigest = revalidationDigest;
+  }
+  storageMap.set(namespace, cacheStorage);
   return cacheStorage;
 };
 var getCachedItem = async (cacheStorage, cacheKey) => {
   const cachedOutputCompressed = cacheStorage.cache.get(cacheKey);
-  if (DEBUG_CACHE)
+  if (DEBUG_CACHE && cachedOutputCompressed)
     console.log("iterator", "get cache", {
       cacheKey,
       cachedOutputCompressed,
-      cacheNamespaceMap
+      storageMap
     });
   return cachedOutputCompressed ? decompressObject(cachedOutputCompressed) : null;
 };
@@ -12137,11 +12135,19 @@ var setCachedItem = async (cacheStorage, cacheKey, item) => {
     console.log("iterator", "set cache", {
       cacheKey,
       compressedOutput,
-      cacheNamespaceMap
+      storageMap
     });
 };
 var createGraphDigest = async (graph) => {
-  return await createDigest(JSON.stringify(graph.nodes.map((m) => m.data)));
+  const digest = await createDigest(
+    JSON.stringify({ nodes: graph.nodes.map((m) => m.data), connections: graph.connections })
+  );
+  if (DEBUG_CACHE)
+    console.log("iterator", "create graph digest", {
+      graph,
+      digest
+    });
+  return digest;
 };
 
 // src/nodes/IteratorNode.ts
@@ -12299,7 +12305,6 @@ function createIteratorNode(rivet) {
       const cacheNamespace = graphRef.graphId;
       const enableCache = data.enableCache && cacheNamespace != null;
       const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
-      invalideCacheIfChanges(cacheStorage, revalidationDigest);
       const missingKeys = /* @__PURE__ */ new Set();
       const notDataValue = /* @__PURE__ */ new Set();
       const invalidInputs = iteratorInputs.some((item) => {
@@ -12345,6 +12350,9 @@ function createIteratorNode(rivet) {
                 [callGraphConnectionIds.inputs]: itemDataValue
               };
               if (enableCache) {
+                console.log("Iterator: Checking cache", {
+                  cache: cacheStorage.cache
+                });
                 const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
                 const cachedValue = await getCachedItem(cacheStorage, cacheKey);
                 if (cachedValue != null) {
