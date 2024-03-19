@@ -209,7 +209,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 		// what the current data of the node is in some way that is useful at a glance.
 		getBody(data: PineconeSearchNodeData): string | NodeBodySpec | NodeBodySpec[] | undefined {
 			return rivet.dedent`TopK: ${data.useTopKInput ? '(using input)' : data.topK}
-			  Alpha: ${data.useAlphaInput ? '(using input)' : data.alpha}
+				Alpha: ${data.useAlphaInput ? '(using input)' : data.alpha}
 				Collection Url: ${data.useCollectionUrlInput ? '(using input)' : data.collectionUrl}
 				Namespace: ${data.useNamespaceInput ? '(using input)' : data.namespace ?? ''}
     	`;
