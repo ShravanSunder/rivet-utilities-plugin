@@ -56,7 +56,6 @@ export type PineconeSearchNodeData = {
 	useAlphaInput?: boolean;
 	namespace: string;
 	useNamespaceInput?: boolean;
-	matches: PineconeQueryResult['matches'];
 };
 
 // The function that defines the plugin node for Vector Nearest Neighbors.
@@ -76,7 +75,6 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					useTopKInput: false,
 					useCollectionUrlInput: false,
 					namespace: '',
-					matches: [],
 				},
 			};
 		},

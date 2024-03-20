@@ -11125,8 +11125,7 @@ function createPineconeSearchNode(rivet) {
           collectionUrl: "",
           useTopKInput: false,
           useCollectionUrlInput: false,
-          namespace: "",
-          matches: []
+          namespace: ""
         }
       };
     },
@@ -12417,7 +12416,7 @@ function createIteratorNode(rivet) {
         });
       });
       const iteratorOutputs = await Promise.all(addToQueue);
-      await queue.onIdle();
+      await queue.onEmpty();
       if (enableCache) {
         void cleanExpiredCache();
       }

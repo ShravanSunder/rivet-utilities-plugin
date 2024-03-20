@@ -376,7 +376,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 
 			// wait for queue to finish
 			const iteratorOutputs = await Promise.all(addToQueue);
-			await queue.onIdle();
+			await queue.onEmpty();
 
 			if (enableCache) {
 				void cleanExpiredCache();
