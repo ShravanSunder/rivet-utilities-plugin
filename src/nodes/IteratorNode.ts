@@ -2,30 +2,31 @@
 // Make sure you do `import type` and do not pull in the entire Rivet core library here.
 // Export a function that takes in a Rivet object, and you can access rivet library functionality
 // from there.
-import type {
-	ObjectDataValue,
-	ChartNode,
-	EditorDefinition,
-	Inputs,
-	InternalProcessContext,
-	NodeBodySpec,
-	NodeConnection,
-	NodeId,
-	NodeInputDefinition,
-	NodeOutputDefinition,
-	NodeUIData,
-	Outputs,
-	PluginNodeImpl,
-	PortId,
-	Project,
-	Rivet,
-	isScalarDataType,
-	isArrayDataType,
-	isFunctionDataType,
-	LooseDataValue,
-	DataValue,
-	GraphReferenceNode,
-	NodeGraph,
+import {
+	type ObjectDataValue,
+	type ChartNode,
+	type EditorDefinition,
+	type Inputs,
+	type InternalProcessContext,
+	type NodeBodySpec,
+	type NodeConnection,
+	type NodeId,
+	type NodeInputDefinition,
+	type NodeOutputDefinition,
+	type NodeUIData,
+	type Outputs,
+	type PluginNodeImpl,
+	type PortId,
+	type Project,
+	type Rivet,
+	type isScalarDataType,
+	type isArrayDataType,
+	type isFunctionDataType,
+	type LooseDataValue,
+	type DataValue,
+	type GraphReferenceNode,
+	type NodeGraph,
+	dedent,
 } from '@ironclad/rivet-core';
 import PQueue from 'p-queue';
 
@@ -271,7 +272,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 					type: 'control-flow-excluded',
 					value: undefined,
 				};
-				let errorMessage = 'Input validation error::';
+				let errorMessage = 'Input validation error: ';
 				if (missingKeys.size > 0) {
 					errorMessage += `Missing keys required for graph: 
             ${Array.from(missingKeys)
@@ -279,7 +280,7 @@ export function createIteratorNode(rivet: typeof Rivet) {
 							.join('; ')}`;
 				}
 				if (notDataValue.size > 0) {
-					errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue: 
+					errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue:: 
             ${Array.from(notDataValue)
 							.map((value) => JSON.stringify(value))
 							.join('; ')}`;
@@ -351,9 +352,10 @@ export function createIteratorNode(rivet: typeof Rivet) {
 
 						itemOutput[callGraphConnectionIds.error] = {
 							type: 'string',
-							value: `Error running graph ${graphRef.graphName}.  Inputs: ${JSON.stringify(item)}  Message: ${
-								rivet.getError(err).message
-							}`,
+							value: rivet.dedent`Error running graph ${graphRef.graphName}.  
+							Message::: ${rivet.getError(err).message}
+							Input::: JSON ${JSON.stringify(item)}
+							`,
 						};
 						abortIteration = true;
 					}
@@ -373,16 +375,26 @@ export function createIteratorNode(rivet: typeof Rivet) {
 				(f) => f[callGraphConnectionIds.outputs]?.type === 'control-flow-excluded'
 			);
 			if (errorInIteratorOutputs) {
+				const wasAborted = iteratorOutputs.some((f) =>
+					(f[callGraphConnectionIds.error]?.value as string)?.includes?.('Aborted')
+				);
+				const itemErrors = iteratorOutputs
+					.filter((f) => f[callGraphConnectionIds.outputs]?.type === 'control-flow-excluded')
+					.map(
+						(m, i) => rivet.dedent`Item Index ${i}:: 
+					${m[callGraphConnectionIds.error]?.value}`
+					)
+					.join(';\n  ');
+
 				outputs[iteratorConnectionIds.iteratorOutputs] = {
 					type: 'control-flow-excluded',
 					value: undefined,
 				};
 				outputs[iteratorConnectionIds.error] = {
 					type: 'string',
-					value: iteratorOutputs
-						.filter((f) => f[callGraphConnectionIds.outputs]?.type === 'control-flow-excluded')
-						.map((m, i) => `ItemIndex:${i}:: ${m[callGraphConnectionIds.error]?.value}`)
-						.join(';\n  '),
+					value: rivet.dedent`${wasAborted ? 'Iterator was aborted!\n' : ''}
+					ItemErrors:
+					${itemErrors}`,
 				};
 				return outputs;
 			}

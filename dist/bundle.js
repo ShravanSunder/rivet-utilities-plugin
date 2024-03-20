@@ -12333,13 +12333,13 @@ function createIteratorNode(rivet) {
           type: "control-flow-excluded",
           value: void 0
         };
-        let errorMessage = "Input validation error::";
+        let errorMessage = "Input validation error: ";
         if (missingKeys.size > 0) {
           errorMessage += `Missing keys required for graph: 
             ${Array.from(missingKeys).map((key) => key).join("; ")}`;
         }
         if (notDataValue.size > 0) {
-          errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue: 
+          errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue:: 
             ${Array.from(notDataValue).map((value) => JSON.stringify(value)).join("; ")}`;
         }
         outputs[iteratorConnectionIds.error] = {
@@ -12397,7 +12397,10 @@ function createIteratorNode(rivet) {
             };
             itemOutput[callGraphConnectionIds.error] = {
               type: "string",
-              value: `Error running graph ${graphRef.graphName}.  Inputs: ${JSON.stringify(item)}  Message: ${rivet.getError(err).message}`
+              value: rivet.dedent`Error running graph ${graphRef.graphName}.  
+							Message::: ${rivet.getError(err).message}
+							Input::: JSON ${JSON.stringify(item)}
+							`
             };
             abortIteration = true;
           }
@@ -12413,13 +12416,22 @@ function createIteratorNode(rivet) {
         (f) => f[callGraphConnectionIds.outputs]?.type === "control-flow-excluded"
       );
       if (errorInIteratorOutputs) {
+        const wasAborted = iteratorOutputs.some(
+          (f) => f[callGraphConnectionIds.error]?.value?.includes?.("Aborted")
+        );
+        const itemErrors = iteratorOutputs.filter((f) => f[callGraphConnectionIds.outputs]?.type === "control-flow-excluded").map(
+          (m, i) => rivet.dedent`Item Index ${i}:: 
+					${m[callGraphConnectionIds.error]?.value}`
+        ).join(";\n  ");
         outputs[iteratorConnectionIds.iteratorOutputs] = {
           type: "control-flow-excluded",
           value: void 0
         };
         outputs[iteratorConnectionIds.error] = {
           type: "string",
-          value: iteratorOutputs.filter((f) => f[callGraphConnectionIds.outputs]?.type === "control-flow-excluded").map((m, i) => `ItemIndex:${i}:: ${m[callGraphConnectionIds.error]?.value}`).join(";\n  ")
+          value: rivet.dedent`${wasAborted ? "Iterator was aborted!\n" : ""}
+					ItemErrors:
+					${itemErrors}`
         };
         return outputs;
       }
