@@ -75,7 +75,7 @@ export class PineconeVectorDatabase {
 	async query(params: PineconeQuery): Promise<PineconeQueryResult> {
 		const collectionDetails = getCollection(params.collectionUrl);
 		const req: Record<string, unknown> = params;
-		if ('sparseVector' in params && 'vector' in params && params.sparseVector != null) {
+		if ('sparseVector' in params && 'vector' in params && params.sparseVector != null && params.alpha != null) {
 			const transform = this.hybridScoreWeighting(params.vector, params.sparseVector, params.alpha);
 			req.vector = transform.vector;
 			req.sparseVector = transform.sparseVector;
