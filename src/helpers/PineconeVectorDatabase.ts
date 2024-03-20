@@ -8,9 +8,6 @@ import type {
 	VectorDatabase,
 	Rivet,
 } from '@ironclad/rivet-core';
-import { pineconeMetadataSchema, PineconeMetadataInputValue, PineconeMetadata } from './models/PineconeMetadata';
-import sha256 from 'crypto-js/sha256';
-import { createDigest } from './createDigest';
 import { PineconeQuery, PineconeQueryResult } from './models/PineconeQuery';
 import { PineconeSparseVector } from './models/PineconeSparseVector';
 import { PineconeUpsertRequest } from './models/PineconeUpsert';

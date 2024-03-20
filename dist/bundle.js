@@ -12100,7 +12100,7 @@ var decompressObject = (compressedData) => {
 
 // src/helpers/cacheStorage.ts
 var storageMap = /* @__PURE__ */ new Map();
-var DEBUG_CACHE = false;
+var DEBUG_CACHE = true;
 var cleanExpiredCache = async () => {
   const now = Date.now();
   storageMap.forEach((value, key) => {
@@ -12173,7 +12173,8 @@ var callGraphConnectionIds = {
   graph: "graph",
   inputs: "inputs",
   outputs: "outputs",
-  error: "error"
+  error: "error",
+  index: "index"
 };
 var iteratorConnectionIds = {
   iteratorInputs: "iteratorInputs",
@@ -12190,10 +12191,9 @@ function createIteratorNode(rivet) {
   const IteratorNodeImpl = {
     // This should create a new instance of your node type from scratch.
     create() {
-      const id = rivet.newId();
       const node = {
         // Use rivet.newId to generate new IDs for your nodes.
-        id,
+        id: rivet.newId(),
         // This is the default data that your node will store
         data: {
           iteratorOutputs: [],
@@ -12349,13 +12349,22 @@ function createIteratorNode(rivet) {
         return outputs;
       }
       const queue = new PQueue({ concurrency: chunkSize });
+      const graphNodeImplList = iteratorInputs.map((m, i) => {
+        const node = rivet.callGraphNode.impl.create();
+        node.id = rivet.newId();
+        const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
+        return impl;
+      });
       const addToQueue = iteratorInputs.map((item, index) => {
         return queue.add(async () => {
           let itemOutput = {};
+          itemOutput[callGraphConnectionIds.index] = {
+            type: "number",
+            value: index
+          };
           try {
             if (!abortIteration) {
-              const node = rivet.callGraphNode.impl.create();
-              const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
+              const impl = graphNodeImplList[index];
               let itemDataValue = {
                 type: "object",
                 value: item

@@ -49,6 +49,7 @@ const callGraphConnectionIds = {
 	inputs: 'inputs' as PortId,
 	outputs: 'outputs' as PortId,
 	error: 'error' as PortId,
+	index: 'index' as PortId,
 } as const;
 
 const iteratorConnectionIds = {
@@ -87,10 +88,9 @@ export function createIteratorNode(rivet: typeof Rivet) {
 	const IteratorNodeImpl: PluginNodeImpl<IteratorNode> = {
 		// This should create a new instance of your node type from scratch.
 		create(): IteratorNode {
-			const id = rivet.newId<NodeId>();
 			const node: IteratorNode = {
 				// Use rivet.newId to generate new IDs for your nodes.
-				id,
+				id: rivet.newId<NodeId>(),
 
 				// This is the default data that your node will store
 				data: {
@@ -294,14 +294,25 @@ export function createIteratorNode(rivet: typeof Rivet) {
 
 			// create a queue to process the array
 			const queue = new PQueue({ concurrency: chunkSize });
+
+			const graphNodeImplList = iteratorInputs.map((m, i) => {
+				const node = rivet.callGraphNode.impl.create();
+				node.id = rivet.newId<NodeId>();
+				const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
+				return impl;
+			});
+
 			const addToQueue = iteratorInputs.map((item: unknown, index) => {
 				return queue.add<Outputs>(async (): Promise<Outputs> => {
 					let itemOutput: Outputs = {};
+					itemOutput[callGraphConnectionIds.index] = {
+						type: 'number',
+						value: index,
+					};
 					try {
 						if (!abortIteration) {
 							// create a call graph node
-							const node = rivet.callGraphNode.impl.create();
-							const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
+							const impl = graphNodeImplList[index];
 
 							// set the inputs
 							let itemDataValue: ObjectDataValue = {

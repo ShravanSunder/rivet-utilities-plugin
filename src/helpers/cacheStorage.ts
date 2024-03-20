@@ -18,7 +18,7 @@ export type CacheStorage = {
  */
 const storageMap: Map<string, CacheStorage> = new Map();
 
-const DEBUG_CACHE = false;
+const DEBUG_CACHE = true;
 
 /**
  * Cleans up expired cache entries.
