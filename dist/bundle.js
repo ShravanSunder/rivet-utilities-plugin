@@ -7312,7 +7312,7 @@ var PineconeVectorDatabase = class {
   async query(params) {
     const collectionDetails = getCollection(params.collectionUrl);
     const req = params;
-    if ("sparseVector" in params && "vector" in params && params.sparseVector != null) {
+    if ("sparseVector" in params && "vector" in params && params.sparseVector != null && params.alpha != null) {
       const transform = this.hybridScoreWeighting(params.vector, params.sparseVector, params.alpha);
       req.vector = transform.vector;
       req.sparseVector = transform.sparseVector;
@@ -11236,7 +11236,7 @@ function createPineconeSearchNode(rivet) {
           dataKey: "alpha",
           label: "Alpha",
           defaultValue: 0.5,
-          helperMessage: "Alpha value for hybrid search. 0.5 is a balanced weighting. 0 is fully weighted to the dense vector.  1 is fully weighted to the sparse vector. (0 < alpha < 1)",
+          helperMessage: "Alpha value for hybrid search. 0.5 is a balanced weighting. 1 is fully weighted to the dense vector.  0 is fully weighted to the sparse vector. (0 < alpha < 1)",
           useInputToggleDataKey: "useAlphaInput"
         }
       ];

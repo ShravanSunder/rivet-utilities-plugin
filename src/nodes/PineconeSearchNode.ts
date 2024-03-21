@@ -198,7 +198,7 @@ export function createPineconeSearchNode(rivet: typeof Rivet) {
 					label: 'Alpha',
 					defaultValue: 0.5,
 					helperMessage:
-						'Alpha value for hybrid search. 0.5 is a balanced weighting. 0 is fully weighted to the dense vector.  1 is fully weighted to the sparse vector. (0 < alpha < 1)',
+						'Alpha value for hybrid search. 0.5 is a balanced weighting. 1 is fully weighted to the dense vector.  0 is fully weighted to the sparse vector. (0 < alpha < 1)',
 					useInputToggleDataKey: 'useAlphaInput',
 				},
 			];
