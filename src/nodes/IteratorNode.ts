@@ -28,7 +28,7 @@ import PQueue from 'p-queue';
 
 import { createDigest } from '../helpers/createDigest.js';
 import { isObjectDataValue } from '../helpers/dataValueHelpers.js';
-import { validateGraphInputItem } from './functions/validateGraphInputItem.js';
+import { validateGraphInput } from './functions/validateGraphInputItem.js';
 import {
 	getCacheStorageForNamespace,
 	cleanExpiredCache,
@@ -252,7 +252,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 			const missingKeys = new Set<string>();
 			const notDataValue = new Set<string>();
 			const invalidInputs = iteratorInputs.some((item) => {
-				return validateGraphInputItem(rivet, item, graph, missingKeys, notDataValue);
+				return validateGraphInput(rivet, item, graph, missingKeys, notDataValue);
 			});
 
 			if (invalidInputs) {
@@ -307,6 +307,9 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 								type: 'object',
 								value: item as Record<string, unknown>,
 							};
+							/**
+							 * in case the item is already a DataValue, use it as is
+							 */
 							if (isObjectDataValue(rivet, item)) {
 								itemDataValue = item;
 							}

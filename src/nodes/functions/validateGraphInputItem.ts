@@ -4,27 +4,27 @@ import { isObjectDataValue, isAnyDataValue } from '../../helpers/dataValueHelper
 /**
  * Validates the input item against the graph's input nodes.
  * @param rivet - The Rivet object.
- * @param item - The input item to validate.
+ * @param input - The input item to validate.
  * @param graph - The NodeGraph object.
  * @param missingKeysOut - A set to store missing keys.
  * @param notDataValueOut - A set to store keys that are not DataValues.
  * @returns True if the input item is invalid, false otherwise.
  */
-export const validateGraphInputItem = (
+export const validateGraphInput = (
 	rivet: typeof Rivet,
-	item: Record<string, unknown>,
+	input: Record<string, unknown>,
 	graph: NodeGraph,
 	missingKeysOut: Set<string>,
 	notDataValueOut: Set<string>
 ) => {
-	let itemKeys = Object.keys(item);
-	if (isObjectDataValue(rivet, item)) {
-		itemKeys = Object.keys(item.value);
+	let inputKeys = Object.keys(input);
+	if (isObjectDataValue(rivet, input)) {
+		inputKeys = Object.keys(input.value);
 	}
 
-	let itemValues = Object.values(item);
-	if (isObjectDataValue(rivet, item)) {
-		itemValues = Object.values(item.value);
+	let inputValues = Object.values(input);
+	if (isObjectDataValue(rivet, input)) {
+		inputValues = Object.values(input.value);
 	}
 
 	/**
@@ -41,16 +41,16 @@ export const validateGraphInputItem = (
 	/**
 	 * if expected keys aren't in the item keys, then the item is invalid
 	 */
-	if (expectedKeys.some((s) => !itemKeys.includes(s))) {
+	if (expectedKeys.some((s) => !inputKeys.includes(s))) {
 		for (const key of expectedKeys) {
-			if (!itemKeys.includes(key)) {
+			if (!inputKeys.includes(key)) {
 				missingKeysOut.add(key);
 			}
 		}
 		return true;
 	}
 
-	const invalidData = itemValues.some((s: unknown) => {
+	const invalidData = inputValues.some((s: unknown) => {
 		/**
 		 * if the item values aren't DataValues, then the item is invalid
 		 */
