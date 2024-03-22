@@ -6,9 +6,15 @@ This is an utilities plugin for rivet
 
 ### Iterator Node
 
-The iterator Node will It will map through an array of object inputs `objectDataValues[][]`. The plugin will then call the subgraph you'd like to execute for item in the array.  Additionally
+The iterator Node will map through an array of object inputs `objectDataValues[][]`. The plugin will then call the subgraph you'd like to execute for item in the array.  Additionally
 
 - it has a `chunkSize` option to limit the number of concurrent executions.
+- it has a `cache` option to cache subgraph outputs of successful item runs.
+
+### Pipeline Node
+
+The PipelineNode will take and input and run it through a pipelien of graphs.  Each graph's output should be the next graph's input.  
+
 - it has a `cache` option to cache subgraph outputs of successful item runs.
 
 ### Pinecone Search Node
@@ -35,19 +41,25 @@ Inputs must be an array of objects to iterate over.  Each object in the array sh
 
 Ouputs will be an array of ObjectDataValue `type: `object `, value: {<graph output id>: <output value>}`
 
-![1709682618198](image/README/1709682618198.png)
+![1709682618198](assets/1709682618198.png)
 
-![1709682622326](image/README/1709682622326.png)
+![1709682622326](assets/1709682622326.png)
+
+### Using Pipeline node
+
+![2024-03-22.0320.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project)](./assets/2024-03-22.0320.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project).png)
+
+
 
 ### Using Pinecone Nodes
 
 Pinecone search node
 
-![1710344219550](image/README/1710344219550.png)
+![1710344219550](assets/1710344219550.png)
 
 Pinecone upsert node
 
-![pinecone upsert](image/README/pinecone-upsert.png)
+![pinecone upsert](assets/pinecone-upsert.png)
 
 ## Breaking changes
 
