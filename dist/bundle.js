@@ -12454,6 +12454,13 @@ function registerIteratorNode(rivet) {
 }
 
 // src/nodes/PipelineNode.ts
+var callGraphConnectionIds2 = {
+  graph: "graph",
+  inputs: "inputs",
+  outputs: "outputs",
+  error: "error",
+  stageIndex: "stageIndex"
+};
 var graphIdPrefix = "graph-";
 var pipelineConnectionIds = {
   pipelineInput: "pipelineInput",
@@ -12464,22 +12471,32 @@ var pipelineConnectionIds = {
   enableCache: "enableCache"
 };
 function registerPipelineNode(rivet) {
-  var _nodeId, _getGraphInputPortCount, getGraphInputPortCount_fn;
   const pipelineInputOutputsHelperMessage = rivet.dedent`Pipeline Input must be an Object.  The object should be a ObjectDataValue \`{type: 'object', value: <graph inputs>}\`; where <graph inputs> is of the format \`{type: 'object', value: {<graph input id>: <input value>}}\` The graph input id should match the graph's input ports.  The input value should be a DataValue. 
 
   Pipeline Ouput will be an ObjectDataValue \`type: 'object', value: {<graph output id>: <output value>}\``;
-  class PipelineNodeImpl {
-    constructor() {
-      __privateAdd(this, _getGraphInputPortCount);
-      __privateAdd(this, _nodeId, "");
+  const getGraphInputPortCount = (connections) => {
+    const inputConnections = connections.filter(
+      (connection) => (
+        /* connection.inputNodeId === nodeId && */
+        connection.inputId.startsWith(pipelineConnectionIds.graphPrefix)
+      )
+    );
+    let maxInputNumber = 0;
+    for (const connection of inputConnections) {
+      const inputNumber = parseInt(connection.inputId.replace(pipelineConnectionIds.graphPrefix, ""));
+      if (inputNumber > maxInputNumber) {
+        maxInputNumber = inputNumber;
+      }
     }
+    return maxInputNumber + 1;
+  };
+  const pipelineNodeImpl = {
     // This should create a new instance of your node type from scratch.
     create() {
-      __privateSet(this, _nodeId, rivet.newId());
-      console.log("PipelineNode", "create", __privateGet(this, _nodeId));
+      console.log("Pipeline", "create");
       const node = {
         // Use rivet.newId to generate new IDs for your nodes.
-        id: __privateGet(this, _nodeId),
+        id: rivet.newId(),
         // This is the default data that your node will store
         data: {
           enableCache: false
@@ -12496,10 +12513,11 @@ function registerPipelineNode(rivet) {
         }
       };
       return node;
-    }
+    },
     // This function should return all input ports for your node, given its data, connections, all other nodes, and the project. The
     // connection, nodes, and project are for advanced use-cases and can usually be ignored.
-    getInputDefinitions(data, connections, _nodes, _project) {
+    getInputDefinitions(data, connections, nodes, _project) {
+      console.log("Pipeline", "getInputDefinitions", data);
       const inputs = [];
       inputs.push({
         id: pipelineConnectionIds.pipelineInput,
@@ -12508,22 +12526,22 @@ function registerPipelineNode(rivet) {
         description: pipelineInputOutputsHelperMessage,
         required: true
       });
-      console.log("PipelineNode", "setup inputs", __privateGet(this, _nodeId));
-      const graphInputCount = __privateMethod(this, _getGraphInputPortCount, getGraphInputPortCount_fn).call(this, connections);
+      const graphInputCount = getGraphInputPortCount(connections);
       for (let i = 0; i <= graphInputCount; i++) {
         inputs.push({
           id: pipelineConnectionIds.getGraphId(i),
           dataType: "graph-reference",
           title: `Graph: ${i}`,
           description: `The reference to the graph to call for pipeline graph ${i}`,
-          required: true
+          required: false
         });
       }
       return inputs;
-    }
+    },
     // This function should return all output ports for your node, given its data, connections, all other nodes, and the project. The
     // connection, nodes, and project are for advanced use-cases and can usually be ignored.
     getOutputDefinitions(data, _connections, _nodes, _project) {
+      console.log("Pipeline", "getOutputDefinitions");
       return [
         {
           id: pipelineConnectionIds.pipelineOutput,
@@ -12531,9 +12549,10 @@ function registerPipelineNode(rivet) {
           title: "Pipeline Output"
         }
       ];
-    }
+    },
     // This returns UI information for your node, such as how it appears in the context menu.
     getUIData() {
+      console.log("Pipeline", "getUIData");
       return {
         contextMenuTitle: "Pipeline Node",
         group: "Logic",
@@ -12542,7 +12561,7 @@ function registerPipelineNode(rivet) {
           ${pipelineInputOutputsHelperMessage}`,
         infoBoxTitle: "Pipeline Node"
       };
-    }
+    },
     // This function defines all editors that appear when you edit your node.
     getEditors(_data) {
       return [
@@ -12553,46 +12572,149 @@ function registerPipelineNode(rivet) {
           helperMessage: rivet.dedent`If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs.`
         }
       ];
-    }
+    },
     // This function returns the body of the node when it is rendered on the graph. You should show
     // what the current data of the node is in some way that is useful at a glance.
     getBody(data) {
+      console.log("Pipeline", "getBody", data);
       return rivet.dedent`Pipeline Node
 				Enable Cache: ${data.enableCache}
       `;
-    }
+    },
     // This is the main processing function for your node. It can do whatever you like, but it must return
     // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
     // must also correspond to the output definitions you defined in the getOutputDefinitions function.
     async process(data, inputData, context) {
-      console.log("Pipeline", "inputs", inputData);
+      console.log("Pipeline", "process", inputData);
       let outputs = {};
-      outputs[pipelineConnectionIds.pipelineOutput] = {
-        type: "object",
-        value: {
-          message: "Pipeline Node is not implemented"
+      let abortIteration = false;
+      context.signal.addEventListener("abort", () => {
+        abortIteration = true;
+      });
+      const numOfGraphs = Object.keys(inputData).filter((key) => key.startsWith(pipelineConnectionIds.graphPrefix)).length - 1;
+      const graphs = Array.from({ length: numOfGraphs }, (_, i) => {
+        const graphRef = rivet.coerceType(inputData[pipelineConnectionIds.getGraphId(i)], "graph-reference");
+        if (graphRef.graphId && !graphRef.graphName) {
+          return context.project.graphs[graphRef.graphId];
         }
-      };
+      }).filter((f) => f != null);
+      const revalidationDigest = await createGraphDigest(graphs);
+      const cacheNamespace = `pipeline-${context.node.id}`;
+      const enableCache = data.enableCache && cacheNamespace != null;
+      const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
+      const pipelineEntryInput = rivet.coerceType(inputData[pipelineConnectionIds.pipelineInput], "object");
+      let nextStageInput = pipelineEntryInput;
+      for (let i = 0; i < numOfGraphs - 1; i++) {
+        const stageInput = { ...nextStageInput };
+        const graphRef = rivet.coerceType(inputData[pipelineConnectionIds.getGraphId(i)], "graph-reference");
+        const graph = graphs[i];
+        if (!graphRef.graphId || !graphRef.graphName || graph == null) {
+          outputs[pipelineConnectionIds.pipelineOutput] = {
+            type: "control-flow-excluded",
+            value: void 0
+          };
+          outputs[pipelineConnectionIds.error] = {
+            type: "string",
+            value: `Graph reference is invalid for graph ${i}`
+          };
+          return outputs;
+        }
+        if (typeof stageInput !== "object" || stageInput == null || Array.isArray(stageInput)) {
+          outputs[pipelineConnectionIds.pipelineOutput] = {
+            type: "control-flow-excluded",
+            value: void 0
+          };
+          outputs[pipelineConnectionIds.error] = {
+            type: "string",
+            value: rivet.dedent`Input must be an object.  Each stage's input should match the prior stage's output shape.  Error with input at stage ${i}`
+          };
+          return outputs;
+        }
+        const missingKeys = /* @__PURE__ */ new Set();
+        const notDataValue = /* @__PURE__ */ new Set();
+        const invalidInputs = validateGraphInput(rivet, stageInput, graph, missingKeys, notDataValue);
+        if (invalidInputs) {
+          outputs[pipelineConnectionIds.pipelineOutput] = {
+            type: "control-flow-excluded",
+            value: void 0
+          };
+          let errorMessage = `Input validation error for stage ${i}: `;
+          if (missingKeys.size > 0) {
+            errorMessage += `Missing keys required for graph:
+			      ${Array.from(missingKeys).map((key) => key).join("; ")}`;
+          }
+          if (notDataValue.size > 0) {
+            errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue::
+			      ${Array.from(notDataValue).map((value) => JSON.stringify(value)).join("; ")}`;
+          }
+          outputs[pipelineConnectionIds.error] = {
+            type: "string",
+            value: errorMessage
+          };
+          return outputs;
+        }
+        try {
+          if (!abortIteration) {
+            const graph2 = graphs[i];
+            const node = rivet.callGraphNode.impl.create();
+            node.id = rivet.newId();
+            const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
+            let stageGraphInputDataValue = {
+              type: "object",
+              value: stageInput
+            };
+            if (isObjectDataValue(rivet, stageInput)) {
+              stageGraphInputDataValue = stageInput;
+            }
+            const pipelineInputData = {
+              [callGraphConnectionIds2.graph]: inputData[pipelineConnectionIds.getGraphId(i)],
+              [callGraphConnectionIds2.inputs]: stageGraphInputDataValue
+            };
+            if (enableCache) {
+              const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
+              const cachedValue = await getCachedItem(cacheStorage, cacheKey);
+              if (cachedValue != null) {
+                console.log(`Pipeline ${i}: Using cached value`);
+                return cachedValue;
+              }
+            }
+            outputs = await impl.process(pipelineInputData, context);
+            if (enableCache) {
+              const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
+              setCachedItem(cacheStorage, cacheKey, outputs);
+            }
+            nextStageInput = rivet.coerceType(outputs[callGraphConnectionIds2.outputs], "object");
+          } else {
+            outputs[pipelineConnectionIds.pipelineOutput] = {
+              type: "control-flow-excluded",
+              value: void 0
+            };
+            outputs[pipelineConnectionIds.error] = {
+              type: "string",
+              value: `Aborted ${graphRef.graphName}`
+            };
+            stageInput;
+            break;
+          }
+        } catch (err) {
+          outputs[pipelineConnectionIds.pipelineOutput] = {
+            type: "control-flow-excluded",
+            value: void 0
+          };
+          outputs[pipelineConnectionIds.pipelineOutput] = {
+            type: "string",
+            value: rivet.dedent`Error running graph ${graphRef.graphName}.
+							Message::: ${rivet.getError(err).message}
+							Input::: JSON ${JSON.stringify(stageInput)}
+							`
+          };
+          abortIteration = true;
+        }
+      }
       return outputs;
     }
-  }
-  _nodeId = new WeakMap();
-  _getGraphInputPortCount = new WeakSet();
-  getGraphInputPortCount_fn = function(connections) {
-    const inputNodeId = __privateGet(this, _nodeId);
-    const inputConnections = connections.filter(
-      (connection) => connection.inputNodeId === inputNodeId && connection.inputId.startsWith(pipelineConnectionIds.graphPrefix)
-    );
-    let maxInputNumber = 0;
-    for (const connection of inputConnections) {
-      const inputNumber = parseInt(connection.inputId.replace(pipelineConnectionIds.graphPrefix, ""));
-      if (inputNumber > maxInputNumber) {
-        maxInputNumber = inputNumber;
-      }
-    }
-    return maxInputNumber + 1;
   };
-  const pipelineNode = rivet.pluginNodeDefinition(new PipelineNodeImpl(), "Pipeline Node");
+  const pipelineNode = rivet.pluginNodeDefinition(pipelineNodeImpl, "Pipeline Node");
   return pipelineNode;
 }
 
