@@ -58,7 +58,7 @@ export type PineconeUpsertNodeData = {
 };
 
 // The function that defines the plugin node for Vector Nearest Neighbors.
-export function createPineconeUpsertNode(rivet: typeof Rivet) {
+export function registerPineconeUpsertNode(rivet: typeof Rivet) {
 	// Define the implementation of the node
 	const PineconeUpsertNodeImpl: PluginNodeImpl<PineconeUpsertNode> = {
 		create(): PineconeUpsertNode {

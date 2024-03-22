@@ -107,13 +107,17 @@ export const setCachedItem = async <T extends Record<string, unknown>>(
  * @param graph The NodeGraph object to create a digest for.
  * @returns A Promise that resolves to the digest of the graph.
  */
-export const createGraphDigest = async (graph: NodeGraph) => {
+export const createGraphDigest = async (graphs: NodeGraph[]) => {
 	const digest = await createDigest(
-		JSON.stringify({ nodes: graph.nodes.map((m) => m.data), connections: graph.connections })
+		JSON.stringify(
+			graphs.map((g) => {
+				return { nodes: g.nodes.map((m) => m.data), connections: g.connections };
+			})
+		)
 	);
 	if (DEBUG_CACHE)
 		console.log('iterator', 'create graph digest', {
-			graph,
+			graphs,
 			digest,
 		});
 	return digest;

@@ -59,7 +59,7 @@ export type PineconeSearchNodeData = {
 };
 
 // The function that defines the plugin node for Vector Nearest Neighbors.
-export function createPineconeSearchNode(rivet: typeof Rivet) {
+export function registerPineconeSearchNode(rivet: typeof Rivet) {
 	// Define the implementation of the node
 	const PineconeSearchNodeImpl: PluginNodeImpl<PineconeSearchNode> = {
 		create(): PineconeSearchNode {
