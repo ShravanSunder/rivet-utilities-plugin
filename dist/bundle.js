@@ -12096,7 +12096,7 @@ var decompressObject = (compressedData) => {
 
 // src/helpers/cacheStorage.ts
 var storageMap = /* @__PURE__ */ new Map();
-var DEBUG_CACHE = true;
+var DEBUG_CACHE = false;
 var cleanExpiredCache = async () => {
   const now = Date.now();
   storageMap.forEach((value, key) => {
@@ -12161,7 +12161,7 @@ var createGraphDigest = async (graphs) => {
     )
   );
   if (DEBUG_CACHE)
-    console.log("iterator", "create graph digest", {
+    console.log("create graphs digest", {
       graphs,
       digest
     });
@@ -12333,8 +12333,7 @@ function registerIteratorNode(rivet) {
         };
         let errorMessage = "Input validation error: ";
         if (missingKeys.size > 0) {
-          errorMessage += `Missing keys required for graph: 
-            ${Array.from(missingKeys).map((key) => key).join("; ")}`;
+          errorMessage += `Missing inputs required for graph: ${Array.from(missingKeys).map((key) => key).join("; ")}`;
         }
         if (notDataValue.size > 0) {
           errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue:: 
@@ -12581,9 +12580,6 @@ function registerPipelineNode(rivet) {
 				Enable Cache: ${data.enableCache}
       `;
     },
-    // This is the main processing function for your node. It can do whatever you like, but it must return
-    // a valid Outputs object, which is a map of port IDs to DataValue objects. The return value of this function
-    // must also correspond to the output definitions you defined in the getOutputDefinitions function.
     async process(data, inputData, context) {
       console.log("Pipeline", "process", inputData);
       let outputs = {};
@@ -12591,20 +12587,35 @@ function registerPipelineNode(rivet) {
       context.signal.addEventListener("abort", () => {
         abortIteration = true;
       });
-      const numOfGraphs = Object.keys(inputData).filter((key) => key.startsWith(pipelineConnectionIds.graphPrefix)).length - 1;
+      const invalidEntryInput = !isObjectDataValue(rivet, inputData[pipelineConnectionIds.pipelineInput]);
+      if (invalidEntryInput) {
+        outputs[pipelineConnectionIds.pipelineOutput] = {
+          type: "control-flow-excluded",
+          value: void 0
+        };
+        outputs[pipelineConnectionIds.error] = {
+          type: "string",
+          value: rivet.dedent`Pipeline Input must be an Object.  The object should be a ObjectDataValue \`{type: 'object', value: <graph inputs>}\`; where <graph inputs> is of the format \`{type: 'object', value: {<graph input id>: <input value>}}\` The graph input id should match the graph's input ports.  The input value should be a DataValue. `
+        };
+        return outputs;
+      }
+      const numOfGraphs = Object.keys(inputData).filter(
+        (key) => key.startsWith(pipelineConnectionIds.graphPrefix)
+      ).length;
       const graphs = Array.from({ length: numOfGraphs }, (_, i) => {
         const graphRef = rivet.coerceType(inputData[pipelineConnectionIds.getGraphId(i)], "graph-reference");
-        if (graphRef.graphId && !graphRef.graphName) {
+        if (graphRef.graphId && graphRef.graphName) {
           return context.project.graphs[graphRef.graphId];
         }
       }).filter((f) => f != null);
+      console.log("Pipeline", "graphs", graphs);
       const revalidationDigest = await createGraphDigest(graphs);
       const cacheNamespace = `pipeline-${context.node.id}`;
       const enableCache = data.enableCache && cacheNamespace != null;
       const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
       const pipelineEntryInput = rivet.coerceType(inputData[pipelineConnectionIds.pipelineInput], "object");
       let nextStageInput = pipelineEntryInput;
-      for (let i = 0; i < numOfGraphs - 1; i++) {
+      for (let i = 0; i < numOfGraphs; i++) {
         const stageInput = { ...nextStageInput };
         const graphRef = rivet.coerceType(inputData[pipelineConnectionIds.getGraphId(i)], "graph-reference");
         const graph = graphs[i];
@@ -12640,8 +12651,7 @@ function registerPipelineNode(rivet) {
           };
           let errorMessage = `Input validation error for stage ${i}: `;
           if (missingKeys.size > 0) {
-            errorMessage += `Missing keys required for graph:
-			      ${Array.from(missingKeys).map((key) => key).join("; ")}`;
+            errorMessage += `Missing inputs required for graph: ${Array.from(missingKeys).map((key) => key).join("; ")}`;
           }
           if (notDataValue.size > 0) {
             errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue::
@@ -12655,9 +12665,8 @@ function registerPipelineNode(rivet) {
         }
         try {
           if (!abortIteration) {
-            const graph2 = graphs[i];
+            console.log(`Pipeline ${i}: Running graph ${graphRef.graphName}`);
             const node = rivet.callGraphNode.impl.create();
-            node.id = rivet.newId();
             const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
             let stageGraphInputDataValue = {
               type: "object",

@@ -18,7 +18,7 @@ export type CacheStorage = {
  */
 const storageMap: Map<string, CacheStorage> = new Map();
 
-const DEBUG_CACHE = true;
+const DEBUG_CACHE = false;
 
 /**
  * Cleans up expired cache entries.
@@ -116,7 +116,7 @@ export const createGraphDigest = async (graphs: NodeGraph[]) => {
 		)
 	);
 	if (DEBUG_CACHE)
-		console.log('iterator', 'create graph digest', {
+		console.log('create graphs digest', {
 			graphs,
 			digest,
 		});

@@ -279,10 +279,9 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 				};
 				let errorMessage = 'Input validation error: ';
 				if (missingKeys.size > 0) {
-					errorMessage += `Missing keys required for graph: 
-            ${Array.from(missingKeys)
-							.map((key) => key)
-							.join('; ')}`;
+					errorMessage += `Missing inputs required for graph: ${Array.from(missingKeys)
+						.map((key) => key)
+						.join('; ')}`;
 				}
 				if (notDataValue.size > 0) {
 					errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue:: 
