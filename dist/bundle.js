@@ -12464,6 +12464,10 @@ var graphIdPrefix = "graph-";
 var pipelineConnectionIds = {
   pipelineInput: "pipelineInput",
   pipelineOutput: "pipelineOutput",
+  /**
+   * intermediate stage outputs
+   */
+  intermediateStageOutputs: "intermediateStageOutputs",
   graphPrefix: graphIdPrefix,
   getGraphId: (id) => `${graphIdPrefix}${id.toString()}`,
   error: "error",
@@ -12582,7 +12586,7 @@ function registerPipelineNode(rivet) {
     },
     async process(data, inputData, context) {
       console.log("Pipeline", "process", inputData);
-      let outputs = {};
+      const outputs = {};
       let abortIteration = false;
       context.signal.addEventListener("abort", () => {
         abortIteration = true;
@@ -12615,6 +12619,7 @@ function registerPipelineNode(rivet) {
       const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
       const pipelineEntryInput = rivet.coerceType(inputData[pipelineConnectionIds.pipelineInput], "object");
       let nextStageInput = pipelineEntryInput;
+      const intermediateStageOutputs = [];
       for (let i = 0; i < numOfGraphs; i++) {
         const stageInput = { ...nextStageInput };
         const graphRef = rivet.coerceType(inputData[pipelineConnectionIds.getGraphId(i)], "graph-reference");
@@ -12687,12 +12692,13 @@ function registerPipelineNode(rivet) {
                 return cachedValue;
               }
             }
-            outputs = await impl.process(pipelineInputData, context);
+            const graphOutput = await impl.process(pipelineInputData, context);
             if (enableCache) {
               const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
               setCachedItem(cacheStorage, cacheKey, outputs);
             }
-            nextStageInput = rivet.coerceType(outputs[callGraphConnectionIds2.outputs], "object");
+            nextStageInput = rivet.coerceType(graphOutput[callGraphConnectionIds2.outputs], "object");
+            intermediateStageOutputs.push({ stage: i, graphName: graphRef.graphName, graphOutput: nextStageInput });
           } else {
             outputs[pipelineConnectionIds.pipelineOutput] = {
               type: "control-flow-excluded",
@@ -12720,6 +12726,14 @@ function registerPipelineNode(rivet) {
           abortIteration = true;
         }
       }
+      outputs[pipelineConnectionIds.pipelineOutput] = {
+        type: "object",
+        value: nextStageInput
+      };
+      outputs[pipelineConnectionIds.intermediateStageOutputs] = {
+        type: "object[]",
+        value: intermediateStageOutputs
+      };
       return outputs;
     }
   };

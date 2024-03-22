@@ -66,6 +66,10 @@ const graphIdPrefix = 'graph-';
 const pipelineConnectionIds = {
 	pipelineInput: 'pipelineInput' as PortId,
 	pipelineOutput: 'pipelineOutput' as PortId,
+	/**
+	 * intermediate stage outputs
+	 */
+	intermediateStageOutputs: 'intermediateStageOutputs' as PortId,
 	graphPrefix: graphIdPrefix as PortId,
 	getGraphId: (id: number | string) => `${graphIdPrefix}${id.toString()}` as PortId,
 	error: 'error' as PortId,
@@ -223,7 +227,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 
 		async process(data: PipelineNodeData, inputData: Inputs, context: InternalProcessContext): Promise<Outputs> {
 			console.log('Pipeline', 'process', inputData);
-			let outputs: Outputs = {};
+			const outputs: Outputs = {};
 
 			let abortIteration = false;
 			context.signal.addEventListener('abort', () => {
@@ -271,6 +275,8 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			const pipelineEntryInput = rivet.coerceType(inputData[pipelineConnectionIds.pipelineInput], 'object');
 
 			let nextStageInput: Record<string, unknown> = pipelineEntryInput;
+			const intermediateStageOutputs: Record<string, unknown>[] = [];
+
 			for (let i = 0; i < numOfGraphs; i++) {
 				/**
 				 * prior stage's output is the next stage's input
@@ -369,12 +375,13 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 								return cachedValue;
 							}
 						}
-						outputs = await impl.process(pipelineInputData, context);
+						const graphOutput = await impl.process(pipelineInputData, context);
 						if (enableCache) {
 							const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
 							setCachedItem(cacheStorage, cacheKey, outputs);
 						}
-						nextStageInput = rivet.coerceType(outputs[callGraphConnectionIds.outputs], 'object');
+						nextStageInput = rivet.coerceType(graphOutput[callGraphConnectionIds.outputs], 'object');
+						intermediateStageOutputs.push({ stage: i, graphName: graphRef.graphName, graphOutput: nextStageInput });
 					} else {
 						/**
 						 * If aborted
@@ -406,6 +413,15 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 					abortIteration = true;
 				}
 			}
+
+			outputs[pipelineConnectionIds.pipelineOutput] = {
+				type: 'object',
+				value: nextStageInput,
+			};
+			outputs[pipelineConnectionIds.intermediateStageOutputs] = {
+				type: 'object[]',
+				value: intermediateStageOutputs,
+			};
 
 			return outputs;
 		},
