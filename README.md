@@ -61,7 +61,7 @@ Ouputs will be an array of ObjectDataValue `type: `object `, value: {<graph outp
 
 ### Using Pipeline node
 
-![2024-03-23.0314.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project)](./assets/2024-03-23.0314.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project).png)
+![2024-03-23.0327.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project)](./assets/2024-03-23.0327.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project).png)
 
 ### Using Pinecone Nodes
 
