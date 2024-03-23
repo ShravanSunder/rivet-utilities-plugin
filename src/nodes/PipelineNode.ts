@@ -72,6 +72,8 @@ const pipelineConnectionIds = {
 	intermediateStageOutputs: 'intermediateStageOutputs' as PortId,
 	graphPrefix: graphIdPrefix as PortId,
 	getGraphId: (id: number | string) => `${graphIdPrefix}${id.toString()}` as PortId,
+	prePipelineGraph: 'prePipelineGraph' as PortId,
+	postPipelineGraph: 'postPipelineGraph' as PortId,
 	error: 'error' as PortId,
 	enableCache: 'enableCache' as PortId,
 } as const;
@@ -82,7 +84,6 @@ export type PipelineNode = ChartNode<'pipelineNode', PipelineNodeData>;
 // This defines the data that your new node will store.
 export type PipelineNodeData = {
 	enableCache: boolean;
-	loopPipeline: boolean;
 	numberOfPipelineLoops: number;
 };
 
@@ -124,7 +125,6 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 				// This is the default data that your node will store
 				data: {
 					enableCache: false,
-					loopPipeline: false,
 					numberOfPipelineLoops: 1,
 				} satisfies PipelineNodeData,
 
@@ -163,16 +163,34 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 				required: true,
 			});
 
+			inputs.push({
+				id: pipelineConnectionIds.prePipelineGraph,
+				dataType: 'graph-reference',
+				title: 'Pre-Pipeline Graph',
+				description:
+					'The reference to the graph to call at the very beginning of pipeline process.  This graph will be called before any of the pipeline graphs are called. The output of this graph will be the input to the first pipeline graph.',
+				required: false,
+			});
+
 			const graphInputCount = getGraphInputPortCount(connections);
 			for (let i = 0; i <= graphInputCount; i++) {
 				inputs.push({
 					id: pipelineConnectionIds.getGraphId(i),
 					dataType: 'graph-reference',
-					title: `Graph: ${i}`,
+					title: `Pipeline Graph: ${i}`,
 					description: `The reference to the graph to call for pipeline graph ${i}`,
 					required: false,
 				});
 			}
+
+			inputs.push({
+				id: pipelineConnectionIds.postPipelineGraph,
+				dataType: 'graph-reference',
+				title: 'Post-Pipeline Graph',
+				description:
+					'The reference to the graph to call at the very end of pipeline process.  This graph will be called after all the pipeline loops are done. The output of the last pipeline graph will be the input to this graph.',
+				required: false,
+			});
 
 			return inputs;
 		},
@@ -210,22 +228,6 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 
 		// This function defines all editors that appear when you edit your node.
 		getEditors(data: PipelineNodeData): EditorDefinition<PipelineNode>[] {
-			const repeatePipeline = data.loopPipeline;
-			let conditionalUi: EditorDefinition<PipelineNode>[] = [];
-			if (repeatePipeline) {
-				conditionalUi = [
-					{
-						type: 'number',
-						dataKey: 'numberOfPipelineLoops',
-						label: 'Number of Pipeline Loops',
-						min: 1,
-						max: 100,
-						helperMessage:
-							'Number of times to loop the pipeline. The output of the pipeline will be the input of the next run.',
-					},
-				];
-			}
-
 			return [
 				{
 					type: 'toggle',
@@ -234,13 +236,14 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 					helperMessage: rivet.dedent`If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs.`,
 				},
 				{
-					type: 'toggle',
-					dataKey: 'loopPipeline',
-					label: 'Loop Pipeline',
+					type: 'number',
+					dataKey: 'numberOfPipelineLoops',
+					label: 'Number of Pipeline Loops',
+					min: 1,
+					max: 100,
 					helperMessage:
-						'Enable this option to run the pipeline in a loop a specific number of times.  The output of the pipeline will be the input of the next run.',
+						'Number of times to loop the pipeline. The output of the pipeline will be the input of the next run.',
 				},
-				...conditionalUi,
 			];
 		},
 
@@ -250,8 +253,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			console.log('Pipeline', 'getBody', data);
 			return rivet.dedent`Pipeline Node
 				Enable Cache: ${data.enableCache}
-				Loop Pipeline: ${data.loopPipeline}
-				${data.loopPipeline ? `Number of Loops: ${data.numberOfPipelineLoops}` : ''}
+				Number of Loops: ${data.numberOfPipelineLoops}
       `;
 		},
 
@@ -302,8 +304,8 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			let nextStageInput: Record<string, unknown> = pipelineEntryInput;
 			const intermediateStageOutputs: Record<string, unknown>[] = [];
 
-			const numberOfPipelineLoops = Math.max(data.loopPipeline ? data.numberOfPipelineLoops : 1, 1) ?? 1;
-			for (let loopNum = 1; loopNum <= numberOfPipelineLoops; loopNum++) {
+			const numberOfPipelineLoops = Math.max(data.numberOfPipelineLoops, 1) ?? 1;
+			for (let loopNum = 0; loopNum < numberOfPipelineLoops; loopNum++) {
 				for (let i = 0; i < numOfGraphs; i++) {
 					/**
 					 * prior stage's output is the next stage's input
