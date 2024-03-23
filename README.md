@@ -31,6 +31,21 @@ The PipelineNode will take and input and run it through a pipeline of graphs (st
   - The output of the `post` graph will be the final output of the pipeline node
 
 
+#### An example
+
+An example of executing a pipeline with 3 stages and a pre/post stage
+
+- run `pre stage`
+  - output of `pre-stage` => `stage 0`
+- run stage 0
+  - output of `stage 0` => `stage 1`
+- run `stage 1`
+  - ouput of `stage 1` => `stage 2`
+- run `stage 2`
+  - if no `loop`: output of stage 2 => post-stage
+  - if `loop`: output of stage 2 => stage 0. Repeat `loop number` times
+- output of `stage n` => `post-stage`
+
 ### Pinecone Search Node
 
 The node will allow you to query pinecone for vectors.  Allows `filters with metadata and sparse vectors`.   It also allows you to get `scores` back from the api.   You have access to `alpha` which is the weight of the sparse vector `1` vs dense vector `0`
