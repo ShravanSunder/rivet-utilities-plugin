@@ -10,20 +10,27 @@ The iterator Node will map through an array of object inputs `objectDataValues[]
 
 - it has a `chunkSize` option to limit the number of concurrent executions.
 - it has a `cache` option to cache subgraph outputs of successful item runs.
+- `graph` to run for each item in the array
 
 ### Pipeline Node
 
-The PipelineNode will take and input and run it through a pipelien of graphs.  Each graph's output should be the next graph's input.  
+The PipelineNode will take and input and run it through a pipeline of graphs (stages).  Each stage output should be the next graph's input.  The pipeline node has a optional pre/post stage to run before and after the pipeline stages.  Additionally, you have option to loop through the pipeline stages multiple with the `loop number` option.
 
 - it has a `cache` option to cache subgraph outputs of successful item runs.
+- it has a `loop number` option to loop through the pipeline stages multiple. `default 1`
+
+The stage graphs
+
+- `pre` and `post` option graphs
+- `pipeline graph: x` graphs
 
 ### Pinecone Search Node
 
-The node will allow you to query pinecone for vectors.  Allows `filters with metadata`.   It also allows you to get `scores` back from the api.  These are the reason to use this over the default Vector Retreival node in rivet.
+The node will allow you to query pinecone for vectors.  Allows `filters with metadata and sparse vectors`.   It also allows you to get `scores` back from the api.   You have access to `alpha` which is the weight of the sparse vector `1` vs dense vector `0`
 
 ### Pinecone Upsert Node
 
-This node will allow
+This node will allow you to upsert into pinecone.  It allows you to upsert `sparse vectors` and `metadata` as well.
 
 ## Installation
 
@@ -47,9 +54,7 @@ Ouputs will be an array of ObjectDataValue `type: `object `, value: {<graph outp
 
 ### Using Pipeline node
 
-![2024-03-22.0320.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project)](./assets/2024-03-22.0320.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project).png)
-
-
+![2024-03-23.0314.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project)](./assets/2024-03-23.0314.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project).png)
 
 ### Using Pinecone Nodes
 
