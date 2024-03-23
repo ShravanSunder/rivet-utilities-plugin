@@ -19,10 +19,17 @@ The PipelineNode will take and input and run it through a pipeline of graphs (st
 - it has a `cache` option to cache subgraph outputs of successful item runs.
 - it has a `loop number` option to loop through the pipeline stages multiple. `default 1`
 
-The stage graphs
+#### The stage graphs
 
-- `pre` and `post` option graphs
-- `pipeline graph: x` graphs
+- `pre` optional graph
+  - The output of the `pre` graph will be the input to the first stage graph
+- `stage x` graphs
+  - The output of the `x` graph will be the input to the next stage `y` graph
+  - For example `stage 1` output will be the input to `stage 2`
+  - You can loop through the stages `x` multiple times with the `loop number` option.    The output of the last loop will be the final output of the pipeline node.
+- `post` optional graph
+  - The output of the `post` graph will be the final output of the pipeline node
+
 
 ### Pinecone Search Node
 

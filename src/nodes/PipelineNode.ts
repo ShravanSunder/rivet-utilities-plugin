@@ -355,7 +355,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			inputs.push({
 				id: pipelineConnectionIds.prePipelineGraph,
 				dataType: 'graph-reference',
-				title: 'Pre-Pipeline Graph',
+				title: 'Pre Stage Graph',
 				description:
 					'The reference to the graph to call at the very beginning of pipeline process.  This graph will be called before any of the pipeline graphs are called. The output of this graph will be the input to the first pipeline graph.',
 				required: false,
@@ -366,7 +366,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 				inputs.push({
 					id: pipelineConnectionIds.getGraphId(i),
 					dataType: 'graph-reference',
-					title: `Pipeline Graph: ${i}`,
+					title: `Stage ${i} Graph`,
 					description: `The reference to the graph to call for pipeline graph ${i}`,
 					required: false,
 				});
@@ -375,7 +375,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			inputs.push({
 				id: pipelineConnectionIds.postPipelineGraph,
 				dataType: 'graph-reference',
-				title: 'Post-Pipeline Graph',
+				title: 'Post Stage Graph',
 				description:
 					'The reference to the graph to call at the very end of pipeline process.  This graph will be called after all the pipeline loops are done. The output of the last pipeline graph will be the input to this graph.',
 				required: false,
