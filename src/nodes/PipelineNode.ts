@@ -82,6 +82,8 @@ export type PipelineNode = ChartNode<'pipelineNode', PipelineNodeData>;
 // This defines the data that your new node will store.
 export type PipelineNodeData = {
 	enableCache: boolean;
+	loopPipeline: boolean;
+	numberOfPipelineLoops: number;
 };
 
 // Make sure you export functions that take in the Rivet library, so that you do not
@@ -122,6 +124,8 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 				// This is the default data that your node will store
 				data: {
 					enableCache: false,
+					loopPipeline: false,
+					numberOfPipelineLoops: 1,
 				} satisfies PipelineNodeData,
 
 				// This is the default title of your node.
@@ -205,7 +209,23 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 		},
 
 		// This function defines all editors that appear when you edit your node.
-		getEditors(_data: PipelineNodeData): EditorDefinition<PipelineNode>[] {
+		getEditors(data: PipelineNodeData): EditorDefinition<PipelineNode>[] {
+			const repeatePipeline = data.loopPipeline;
+			let conditionalUi: EditorDefinition<PipelineNode>[] = [];
+			if (repeatePipeline) {
+				conditionalUi = [
+					{
+						type: 'number',
+						dataKey: 'numberOfPipelineLoops',
+						label: 'Number of Pipeline Loops',
+						min: 1,
+						max: 100,
+						helperMessage:
+							'Number of times to loop the pipeline. The output of the pipeline will be the input of the next run.',
+					},
+				];
+			}
+
 			return [
 				{
 					type: 'toggle',
@@ -213,6 +233,14 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 					label: 'Cache Execution',
 					helperMessage: rivet.dedent`If true, the node will cache the successful results of the previous call graph executions. It will use the cached results for the same item inputs.`,
 				},
+				{
+					type: 'toggle',
+					dataKey: 'loopPipeline',
+					label: 'Loop Pipeline',
+					helperMessage:
+						'Enable this option to run the pipeline in a loop a specific number of times.  The output of the pipeline will be the input of the next run.',
+				},
+				...conditionalUi,
 			];
 		},
 
@@ -222,6 +250,8 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			console.log('Pipeline', 'getBody', data);
 			return rivet.dedent`Pipeline Node
 				Enable Cache: ${data.enableCache}
+				Loop Pipeline: ${data.loopPipeline}
+				${data.loopPipeline ? `Number of Loops: ${data.numberOfPipelineLoops}` : ''}
       `;
 		},
 
@@ -262,129 +292,42 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 					return context.project.graphs[graphRef.graphId];
 				}
 			}).filter((f) => f != null) as NodeGraph[];
-			console.log('Pipeline', 'graphs', graphs);
-			const revalidationDigest = await createGraphDigest(graphs);
-
-			const cacheNamespace = `pipeline-${context.node.id}`;
-			const enableCache = data.enableCache && cacheNamespace != null;
+			const enableCache = data.enableCache;
 			/**
 			 * cache storage
 			 */
-			const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
 
 			const pipelineEntryInput = rivet.coerceType(inputData[pipelineConnectionIds.pipelineInput], 'object');
 
 			let nextStageInput: Record<string, unknown> = pipelineEntryInput;
 			const intermediateStageOutputs: Record<string, unknown>[] = [];
 
-			for (let i = 0; i < numOfGraphs; i++) {
-				/**
-				 * prior stage's output is the next stage's input
-				 * spread to shallow copy the object
-				 */
-				const stageInput = { ...nextStageInput };
-				const graphRef = rivet.coerceType(inputData[pipelineConnectionIds.getGraphId(i)], 'graph-reference');
-				const graph = graphs[i];
-
-				if (!graphRef.graphId || !graphRef.graphName || graph == null) {
-					outputs[pipelineConnectionIds.pipelineOutput] = {
-						type: 'control-flow-excluded',
-						value: undefined,
-					};
-					outputs[pipelineConnectionIds.error] = {
-						type: 'string',
-						value: `Graph reference is invalid for graph ${i}`,
-					};
-					return outputs;
-				}
-
-				if (typeof stageInput !== 'object' || stageInput == null || Array.isArray(stageInput)) {
+			const numberOfPipelineLoops = Math.max(data.loopPipeline ? data.numberOfPipelineLoops : 1, 1) ?? 1;
+			for (let loopNum = 1; loopNum <= numberOfPipelineLoops; loopNum++) {
+				for (let i = 0; i < numOfGraphs; i++) {
 					/**
-					 * validate input array, they should all be objects
+					 * prior stage's output is the next stage's input
+					 * spread to shallow copy the object
 					 */
-					outputs[pipelineConnectionIds.pipelineOutput] = {
-						type: 'control-flow-excluded',
-						value: undefined,
-					};
-					outputs[pipelineConnectionIds.error] = {
-						type: 'string',
-						value: rivet.dedent`Input must be an object.  Each stage's input should match the prior stage's output shape.  Error with input at stage ${i}`,
-					};
-					return outputs;
-				}
+					const stageInput = { ...nextStageInput };
+					const graphRef = rivet.coerceType(inputData[pipelineConnectionIds.getGraphId(i)], 'graph-reference');
+					const graph = graphs[i];
 
-				// validate input items to make sure they have all  keys of the  graph's input ports
-				const missingKeys = new Set<string>();
-				const notDataValue = new Set<string>();
-				const invalidInputs = validateGraphInput(rivet, stageInput, graph, missingKeys, notDataValue);
-
-				if (invalidInputs) {
-					outputs[pipelineConnectionIds.pipelineOutput] = {
-						type: 'control-flow-excluded',
-						value: undefined,
-					};
-					let errorMessage = `Input validation error for stage ${i}: `;
-					if (missingKeys.size > 0) {
-						errorMessage += `Missing inputs required for graph: ${Array.from(missingKeys)
-							.map((key) => key)
-							.join('; ')}`;
-					}
-					if (notDataValue.size > 0) {
-						errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue::
-			      ${Array.from(notDataValue)
-							.map((value) => JSON.stringify(value))
-							.join('; ')}`;
-					}
-					outputs[pipelineConnectionIds.error] = {
-						type: 'string',
-						value: errorMessage,
-					};
-					return outputs;
-				}
-
-				try {
-					if (!abortIteration) {
-						console.log(`Pipeline ${i}: Running graph ${graphRef.graphName}`);
-						// create a call graph node
-						const node = rivet.callGraphNode.impl.create();
-						const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
-
-						// set the inputs
-						let stageGraphInputDataValue: ObjectDataValue = {
-							type: 'object',
-							value: stageInput as Record<string, unknown>,
+					if (!graphRef.graphId || !graphRef.graphName || graph == null) {
+						outputs[pipelineConnectionIds.pipelineOutput] = {
+							type: 'control-flow-excluded',
+							value: undefined,
 						};
-						/**
-						 * in case the item is already a DataValue, use it as is
-						 */
-						if (isObjectDataValue(rivet, stageInput)) {
-							stageGraphInputDataValue = stageInput;
-						}
-
-						const pipelineInputData: Inputs = {
-							[callGraphConnectionIds.graph]: inputData[pipelineConnectionIds.getGraphId(i)],
-							[callGraphConnectionIds.inputs]: stageGraphInputDataValue,
+						outputs[pipelineConnectionIds.error] = {
+							type: 'string',
+							value: `Graph reference is invalid for graph ${i}`,
 						};
+						return outputs;
+					}
 
-						if (enableCache) {
-							const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
-							const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
-
-							if (cachedValue != null) {
-								console.log(`Pipeline ${i}: Using cached value`);
-								return cachedValue;
-							}
-						}
-						const graphOutput = await impl.process(pipelineInputData, context);
-						if (enableCache) {
-							const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
-							setCachedItem(cacheStorage, cacheKey, outputs);
-						}
-						nextStageInput = rivet.coerceType(graphOutput[callGraphConnectionIds.outputs], 'object');
-						intermediateStageOutputs.push({ stage: i, graphName: graphRef.graphName, graphOutput: nextStageInput });
-					} else {
+					if (typeof stageInput !== 'object' || stageInput == null || Array.isArray(stageInput)) {
 						/**
-						 * If aborted
+						 * validate input array, they should all be objects
 						 */
 						outputs[pipelineConnectionIds.pipelineOutput] = {
 							type: 'control-flow-excluded',
@@ -392,25 +335,123 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 						};
 						outputs[pipelineConnectionIds.error] = {
 							type: 'string',
-							value: `Aborted ${graphRef.graphName}`,
+							value: rivet.dedent`Input must be an object.  Each stage's input should match the prior stage's output shape.  Error: loop-${loopNum} pipeline-stage-${i}`,
 						};
-						stageInput;
-						break;
+						return outputs;
 					}
-				} catch (err) {
-					outputs[pipelineConnectionIds.pipelineOutput] = {
-						type: 'control-flow-excluded',
-						value: undefined,
-					};
 
-					outputs[pipelineConnectionIds.pipelineOutput] = {
-						type: 'string',
-						value: rivet.dedent`Error running graph ${graphRef.graphName}.
+					// validate input items to make sure they have all  keys of the  graph's input ports
+					const missingKeys = new Set<string>();
+					const notDataValue = new Set<string>();
+					const invalidInputs = validateGraphInput(rivet, stageInput, graph, missingKeys, notDataValue);
+
+					if (invalidInputs) {
+						outputs[pipelineConnectionIds.pipelineOutput] = {
+							type: 'control-flow-excluded',
+							value: undefined,
+						};
+						let errorMessage = `Input validation error for loop-${loopNum} pipeline-stage-${i}: `;
+						if (missingKeys.size > 0) {
+							errorMessage += `Missing inputs required for graph: ${Array.from(missingKeys)
+								.map((key) => key)
+								.join('; ')}`;
+						}
+						if (notDataValue.size > 0) {
+							errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue::
+			      ${Array.from(notDataValue)
+							.map((value) => JSON.stringify(value))
+							.join('; ')}`;
+						}
+						outputs[pipelineConnectionIds.error] = {
+							type: 'string',
+							value: errorMessage,
+						};
+						return outputs;
+					}
+
+					try {
+						if (!abortIteration) {
+							console.log(`loop-${loopNum} pipeline-stage-${i}: Running graph ${graphRef.graphName}`);
+							// create a call graph node
+							const node = rivet.callGraphNode.impl.create();
+							const impl = rivet.globalRivetNodeRegistry.createDynamicImpl(node);
+
+							// set the inputs
+							let stageGraphInputDataValue: ObjectDataValue = {
+								type: 'object',
+								value: stageInput as Record<string, unknown>,
+							};
+							/**
+							 * in case the item is already a DataValue, use it as is
+							 */
+							if (isObjectDataValue(rivet, stageInput)) {
+								stageGraphInputDataValue = stageInput;
+							}
+
+							const pipelineInputData: Inputs = {
+								[callGraphConnectionIds.graph]: inputData[pipelineConnectionIds.getGraphId(i)],
+								[callGraphConnectionIds.inputs]: stageGraphInputDataValue,
+							};
+
+							/**
+							 * Setup cache storage for the graph
+							 */
+							const graphRevalidationDigest = await createGraphDigest([graph]);
+							const cacheNamespace = graphRef.graphId as string;
+							const cacheStorage = getCacheStorageForNamespace(cacheNamespace, graphRevalidationDigest);
+
+							if (enableCache) {
+								/**
+								 * Check if the item is in the cache
+								 */
+								const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
+								const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
+
+								if (cachedValue != null) {
+									console.log(`Pipeline ${i}: Using cached value`);
+									return cachedValue;
+								}
+							}
+							const graphOutput = await impl.process(pipelineInputData, context);
+							if (enableCache) {
+								/**
+								 * Set the item in the cache
+								 */
+								const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
+								setCachedItem(cacheStorage, cacheKey, outputs);
+							}
+							nextStageInput = rivet.coerceType(graphOutput[callGraphConnectionIds.outputs], 'object');
+							intermediateStageOutputs.push({ stage: i, graphName: graphRef.graphName, graphOutput: nextStageInput });
+						} else {
+							/**
+							 * If aborted
+							 */
+							outputs[pipelineConnectionIds.pipelineOutput] = {
+								type: 'control-flow-excluded',
+								value: undefined,
+							};
+							outputs[pipelineConnectionIds.error] = {
+								type: 'string',
+								value: `Aborted ${graphRef.graphName}`,
+							};
+							stageInput;
+							break;
+						}
+					} catch (err) {
+						outputs[pipelineConnectionIds.pipelineOutput] = {
+							type: 'control-flow-excluded',
+							value: undefined,
+						};
+
+						outputs[pipelineConnectionIds.pipelineOutput] = {
+							type: 'string',
+							value: rivet.dedent`Error running graph ${graphRef.graphName}.
 							Message::: ${rivet.getError(err).message}
 							Input::: JSON ${JSON.stringify(stageInput)}
 							`,
-					};
-					abortIteration = true;
+						};
+						abortIteration = true;
+					}
 				}
 			}
 

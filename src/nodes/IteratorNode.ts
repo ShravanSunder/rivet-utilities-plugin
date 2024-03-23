@@ -198,6 +198,8 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 					dataKey: 'chunkSize',
 					label: 'Chunk size',
 					defaultValue: 1,
+					min: 1,
+					max: 20,
 					helperMessage:
 						'The number of items to process at the same time.  This will help process arrays quickly while not overloading the system.  Recommended to keep this below 10 for subgraphs that make network calls or stream model responses.',
 					useInputToggleDataKey: 'useChunkSizeToggle',
@@ -257,13 +259,13 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 			 * get the graph
 			 */
 			const graph = context.project.graphs[graphRef.graphId];
-			const revalidationDigest = await createGraphDigest([graph]);
+			const graphRevalidationDigest = await createGraphDigest([graph]);
 			const cacheNamespace = graphRef.graphId as string;
 			const enableCache = data.enableCache && cacheNamespace != null;
 			/**
-			 * cache storage
+			 * setup cache storage
 			 */
-			const cacheStorage = getCacheStorageForNamespace(cacheNamespace, revalidationDigest);
+			const cacheStorage = getCacheStorageForNamespace(cacheNamespace, graphRevalidationDigest);
 
 			// validate input items to make sure they have all  keys of the  graph's input ports
 			const missingKeys = new Set<string>();
