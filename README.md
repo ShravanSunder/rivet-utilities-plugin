@@ -31,8 +31,8 @@ The PipelineNode will take and input and run it through a pipeline of graphs (st
 - it has a `cache` option to cache subgraph outputs of successful item runs.
 - it has a `loop number` option to loop through the pipeline stages multiple. `default 1`
 
+<img src="./assets/2024-03-23.0352.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project).png" alt="Image" max-width="800px">
 
-<img src="./assets/2024-03-23.0327.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project).png" alt="Image" max-width="800px">
 
 
 #### The stage graphs
