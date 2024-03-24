@@ -285,12 +285,12 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 						.map((key) => key)
 						.join('; ')}`;
 				}
-				if (notDataValue.size > 0) {
-					errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue:: 
-            ${Array.from(notDataValue)
-							.map((value) => JSON.stringify(value))
-							.join('; ')}`;
-				}
+				// if (notDataValue.size > 0) {
+				// 	errorMessage += rivet.dedent`Invalid Inputs, make sure each input item is a ObjectDataValue::
+				//     ${Array.from(notDataValue)
+				// 			.map((value) => JSON.stringify(value))
+				// 			.join('; ')}`;
+				// }
 				outputs[iteratorConnectionIds.error] = {
 					type: 'string',
 					value: errorMessage,
@@ -385,6 +385,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 
 			// wait for queue to finish
 			const iteratorOutputs = await Promise.all(addToQueue);
+			queue.on;
 			await queue.onEmpty();
 
 			if (enableCache) {

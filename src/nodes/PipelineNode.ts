@@ -487,37 +487,39 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			/** ****************
 			 * Pre Pipeline Graph
 			 */
-			const prePipelineGraphRef = rivet.coerceType(
-				inputData[pipelineConnectionIds.prePipelineGraph],
-				'graph-reference'
-			);
-
-			if (prePipelineGraphRef.graphId && prePipelineGraphRef.graphName) {
-				outputs = await processPipelineStage(
-					rivet,
-					{
-						context,
-						nodeInputData: inputData,
-						enableCache,
-					},
-					{
-						stageInput: nextStageInput,
-						stageGraph: context.project.graphs[prePipelineGraphRef.graphId],
-						stageGraphRef: prePipelineGraphRef,
-						stageIdentifier: 'stage-pre',
-					},
-					intermediateStageLogsOut
+			if (inputData[pipelineConnectionIds.prePipelineGraph]) {
+				console.log(inputData[pipelineConnectionIds.prePipelineGraph]);
+				const prePipelineGraphRef = rivet.coerceType(
+					inputData[pipelineConnectionIds.prePipelineGraph],
+					'graph-reference'
 				);
-			}
 
-			if (
-				outputs[pipelineConnectionIds.error] ||
-				outputs[pipelineConnectionIds.pipelineOutput]?.type === 'control-flow-excluded'
-			) {
-				return outputs;
-			}
+				if (prePipelineGraphRef.graphId && prePipelineGraphRef.graphName) {
+					outputs = await processPipelineStage(
+						rivet,
+						{
+							context,
+							nodeInputData: inputData,
+							enableCache,
+						},
+						{
+							stageInput: nextStageInput,
+							stageGraph: context.project.graphs[prePipelineGraphRef.graphId],
+							stageGraphRef: prePipelineGraphRef,
+							stageIdentifier: 'stage-pre',
+						},
+						intermediateStageLogsOut
+					);
+				}
+				if (
+					outputs[pipelineConnectionIds.error] ||
+					outputs[pipelineConnectionIds.pipelineOutput]?.type === 'control-flow-excluded'
+				) {
+					return outputs;
+				}
 
-			nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value as Record<string, unknown>;
+				nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value as Record<string, unknown>;
+			}
 
 			/** ****************
 			 * Pipeline Graphs
@@ -559,37 +561,39 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			/**  ****************
 			 * Post Pipeline Graph
 			 */
-			const postPipelineGraphRef = rivet.coerceType(
-				inputData[pipelineConnectionIds.postPipelineGraph],
-				'graph-reference'
-			);
-
-			if (postPipelineGraphRef.graphId && postPipelineGraphRef.graphName) {
-				outputs = await processPipelineStage(
-					rivet,
-					{
-						context,
-						nodeInputData: inputData,
-						enableCache,
-					},
-					{
-						stageInput: nextStageInput,
-						stageGraph: context.project.graphs[postPipelineGraphRef.graphId],
-						stageGraphRef: postPipelineGraphRef,
-						stageIdentifier: 'stage-post',
-					},
-					intermediateStageLogsOut
+			if (inputData[pipelineConnectionIds.postPipelineGraph]) {
+				const postPipelineGraphRef = rivet.coerceType(
+					inputData[pipelineConnectionIds.postPipelineGraph],
+					'graph-reference'
 				);
-			}
 
-			if (
-				outputs[pipelineConnectionIds.error] ||
-				outputs[pipelineConnectionIds.pipelineOutput]?.type === 'control-flow-excluded'
-			) {
-				return outputs;
-			}
+				if (postPipelineGraphRef.graphId && postPipelineGraphRef.graphName) {
+					outputs = await processPipelineStage(
+						rivet,
+						{
+							context,
+							nodeInputData: inputData,
+							enableCache,
+						},
+						{
+							stageInput: nextStageInput,
+							stageGraph: context.project.graphs[postPipelineGraphRef.graphId],
+							stageGraphRef: postPipelineGraphRef,
+							stageIdentifier: 'stage-post',
+						},
+						intermediateStageLogsOut
+					);
+				}
 
-			nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value as Record<string, unknown>;
+				if (
+					outputs[pipelineConnectionIds.error] ||
+					outputs[pipelineConnectionIds.pipelineOutput]?.type === 'control-flow-excluded'
+				) {
+					return outputs;
+				}
+
+				nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value as Record<string, unknown>;
+			}
 
 			outputs[pipelineConnectionIds.pipelineOutput] = {
 				type: 'object',

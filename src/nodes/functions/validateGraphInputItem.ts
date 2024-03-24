@@ -31,12 +31,20 @@ export const validateGraphInput = (
 	 * expected keys are the ids of the graph's input nodes, if they exist
 	 */
 	const graphInputNodes = graph.nodes.filter((f) => f.type === 'graphInput');
+	/**
+	 * Expected keys don't have default values
+	 */
 	const expectedKeys = graphInputNodes
-		.map((m) => {
-			const id = (m.data as Record<string, unknown>).id as string;
-			return id ?? null;
+		.filter((f) => {
+			const defaultValue = ((f.data as Record<string, unknown>)?.id as Record<string, unknown>).defaultValue as unknown;
+			const id = (f.data as Record<string, unknown>)?.id as string;
+			return id != null && defaultValue != null && defaultValue !== '';
 		})
-		.filter((f) => f != null);
+		.map((m) => {
+			console.log('m.data', m.data);
+			const id = (m.data as Record<string, unknown>).id as string;
+			return id;
+		});
 
 	/**
 	 * if expected keys aren't in the item keys, then the item is invalid
@@ -44,24 +52,26 @@ export const validateGraphInput = (
 	if (expectedKeys.some((s) => !inputKeys.includes(s))) {
 		for (const key of expectedKeys) {
 			if (!inputKeys.includes(key)) {
+				console.log('key', key, expectedKeys);
 				missingKeysOut.add(key);
 			}
 		}
 		return true;
 	}
 
-	const invalidData = inputValues.some((s: unknown) => {
-		/**
-		 * if the item values aren't DataValues, then the item is invalid
-		 */
-		const isDataType = isAnyDataValue(rivet, s);
-		if (!isDataType) {
-			/**
-			 * save the key that isn't a DataValue
-			 */
-			notDataValueOut.add(s as string);
-			return true;
-		}
-	});
-	return invalidData;
+	// const invalidDataValue = inputValues.some((s: unknown) => {
+	// 	/**
+	// 	 * if the item values aren't DataValues, then the item is invalid
+	// 	 */
+	// 	const isDataType = isAnyDataValue(rivet, s);
+	// 	if (!isDataType) {
+	// 		/**
+	// 		 * save the key that isn't a DataValue
+	// 		 */
+	// 		notDataValueOut.add(s as string);
+	// 		return true;
+	// 	}
+	// });
+	// return invalidDataValue;
+	return false;
 };
