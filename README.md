@@ -12,7 +12,6 @@ The iterator Node will map through an array of object inputs `objectDataValues[]
 - it has a `cache` option to cache subgraph outputs of successful item runs.
 - `graph` to run for each item in the array
 
-
 #### Using the Iterator Node
 
 Once install you can use it as show in the examples below.  Make sure the inputs are DataValues.
@@ -23,7 +22,6 @@ Ouputs will be an array of ObjectDataValue `type: `object `, value: {<graph outp
 
 <img src="assets/1709682622326.png" alt="Image" max-width="800px">
 
-
 ### Pipeline Node
 
 The PipelineNode will take and input and run it through a pipeline of graphs (stages).  Each stage output should be the next graph's input.  The pipeline node has a optional pre/post stage to run before and after the pipeline stages.  Additionally, you have option to loop through the pipeline stages multiple with the `loop number` option.
@@ -31,9 +29,7 @@ The PipelineNode will take and input and run it through a pipeline of graphs (st
 - it has a `cache` option to cache subgraph outputs of successful item runs.
 - it has a `loop number` option to loop through the pipeline stages multiple. `default 1`
 
-<img src="./assets/2024-03-23.0352.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project).png" alt="Image" max-width="800px">
-
-
+`<img src="./assets/2024-03-23.0352.Rivet.Rivet 1.7.8 - Project Director Brainstorming (UsersshravansunderDocumentsdevproject-devaskluna-projectaskluna-agent-designprompt-designprompt design.rivet-project).png" alt="Image" max-width="800px">`
 
 #### The stage graphs
 
@@ -46,10 +42,15 @@ The PipelineNode will take and input and run it through a pipeline of graphs (st
 - `post` optional graph
   - The output of the `post` graph will be the final output of the pipeline node
 
+#### Graph Inputs
+
+- The input to the first stage  has id `pipelineInput`
+- The inputs to all following stages is the output of the prior stage
+- All stages have access to id  `pipelineInput`
 
 #### An example
 
-An example of executing a pipeline with 3 stages and a pre/post stage
+An example of executing a pipeline with 3 stages and a pre/post stage.
 
 - run `pre stage`
   - output of `pre-stage` => `stage 0`
@@ -62,6 +63,8 @@ An example of executing a pipeline with 3 stages and a pre/post stage
   - if `loop`: output of stage 2 => stage 0. Repeat `loop number` times
 - output of `stage n` => `post-stage`
 
+> All stages will have access to initial `pipelineInput`
+
 ### Pinecone Search Node
 
 The node will allow you to query pinecone for vectors.  Allows `filters with metadata and sparse vectors`.   It also allows you to get `scores` back from the api.   You have access to `alpha` which is the weight of the sparse vector `1` vs dense vector `0`
@@ -72,17 +75,15 @@ The node will allow you to query pinecone for vectors.  Allows `filters with met
 
 This node will allow you to upsert into pinecone.  It allows you to upsert `sparse vectors` and `metadata` as well.
 
-
 <img src="assets/pinecone-upsert.png" alt="pinecone upsert" width="400">
-
-
 
 ## Installation
 
 See [Rivet Plugins](https://rivet.ironcladapp.com/docs/user-guide/plugins) for more details
 
-
 ## Breaking changes
+
+v0.7.0 pipelineInput is available to all stages.  However it is always available as `pipelineInput`.  Even to the first stage.
 
 v0.3.0 has renamed the Iterator Node (from Iterator Plugin Node).  You'll have to readd the node
 

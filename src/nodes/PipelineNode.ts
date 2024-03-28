@@ -56,6 +56,7 @@ import {
 	GraphReferenceValue,
 	GraphId,
 } from '@ironclad/rivet-core';
+import { sleep } from '../helpers/sleep.js';
 
 const callGraphConnectionIds = {
 	graph: 'graph' as PortId,
@@ -164,6 +165,8 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 		const notDataValue = new Set<string>();
 		const invalidInputs = validateGraphInput(rivet, stageInput, stageGraph, missingKeys, notDataValue);
 
+		console.log(stageIdentifier, stageInput);
+
 		if (invalidInputs) {
 			outputs[pipelineConnectionIds.pipelineOutput] = {
 				type: 'control-flow-excluded',
@@ -219,7 +222,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 						graphName: stageGraphRef.graphName,
 					},
 				};
-				const pipelineInputData: Inputs = {
+				const stageGraphInputs: Inputs = {
 					[callGraphConnectionIds.graph]: graphDataValue,
 					[callGraphConnectionIds.inputs]: stageGraphInputDataValue,
 				};
@@ -236,7 +239,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 					/**
 					 * Check if the item is in the cache
 					 */
-					const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
+					const cacheKey = await createDigest(JSON.stringify(stageGraphInputs));
 					const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 
 					if (cachedValue != null) {
@@ -245,21 +248,23 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 				}
 
 				if (graphOutput == null) {
-					graphOutput = await impl.process(pipelineInputData, context);
+					graphOutput = await impl.process(stageGraphInputs, context);
 				}
 
 				if (enableCache) {
 					/**
 					 * Set the item in the cache
 					 */
-					const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
+					const cacheKey = await createDigest(JSON.stringify(stageGraphInputs));
 					setCachedItem(cacheStorage, cacheKey, graphOutput);
 				}
 				const nextStageInput = rivet.coerceType(graphOutput[callGraphConnectionIds.outputs], 'object');
+				console.log('next stage input', stageIdentifier, nextStageInput);
 				intermediateStageLogsOut.push({
 					identifier: stageIdentifier,
 					graphName: stageGraphRef.graphName,
 					graphOutput: nextStageInput,
+					graphInput: stageInput,
 				});
 
 				outputs[pipelineConnectionIds.pipelineOutput] = {
@@ -474,14 +479,16 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 					return context.project.graphs[graphRef.graphId];
 				}
 			}).filter((f) => f != null) as NodeGraph[];
-			const enableCache = data.enableCache;
+
 			/**
-			 * cache storage
+			 * Get the enable cache flag
 			 */
+			const enableCache = data.enableCache;
 
-			const pipelineInputData = rivet.coerceType(inputData[pipelineConnectionIds.pipelineInput], 'object');
-
-			let nextStageInput: Record<string, unknown> = pipelineInputData;
+			/**
+			 * The next stage input is the prior stage output
+			 */
+			let nextStageInput: Record<string, unknown> = { pipelineInput: inputData[pipelineConnectionIds.pipelineInput] };
 			const intermediateStageLogsOut: Record<string, unknown>[] = [];
 
 			/** ****************
@@ -518,7 +525,8 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 					return outputs;
 				}
 
-				nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value as Record<string, unknown>;
+				nextStageInput = (outputs[pipelineConnectionIds.pipelineOutput]?.value as Record<string, unknown>) ?? {};
+				nextStageInput.pipelineInput = inputData[pipelineConnectionIds.pipelineInput];
 			}
 
 			/** ****************
@@ -527,6 +535,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			const numberOfPipelineLoops = Math.max(data.numberOfPipelineLoops, 1) ?? 1;
 			for (let loopNum = 0; loopNum < numberOfPipelineLoops; loopNum++) {
 				for (let pipelineNum = 0; pipelineNum < numOfGraphs; pipelineNum++) {
+					await sleep(1);
 					const graph = graphs[pipelineNum];
 					const graphRef = rivet.coerceType(
 						inputData[pipelineConnectionIds.getGraphId(pipelineNum)],
@@ -555,6 +564,9 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 					) {
 						return outputs;
 					}
+
+					nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value as Record<string, unknown>;
+					nextStageInput.pipelineInput = inputData[pipelineConnectionIds.pipelineInput];
 				}
 			}
 
@@ -593,11 +605,14 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 				}
 
 				nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value as Record<string, unknown>;
+				nextStageInput.pipelineInput = inputData[pipelineConnectionIds.pipelineInput];
 			}
+
+			const { pipelineInput, ...result } = nextStageInput;
 
 			outputs[pipelineConnectionIds.pipelineOutput] = {
 				type: 'object',
-				value: nextStageInput,
+				value: result,
 			};
 			outputs[pipelineConnectionIds.intermediateStageOutputs] = {
 				type: 'object[]',

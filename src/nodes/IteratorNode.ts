@@ -53,6 +53,7 @@ import {
 	Outputs,
 	ObjectDataValue,
 } from '@ironclad/rivet-core';
+import { sleep } from '../helpers/sleep.js';
 
 const callGraphConnectionIds = {
 	graph: 'graph' as PortId,
@@ -310,6 +311,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 
 			const addToQueue = iteratorInputs.map((item: unknown, index) => {
 				return queue.add<Outputs>(async (): Promise<Outputs> => {
+					await sleep(1);
 					let itemOutput: Outputs = {};
 					itemOutput[callGraphConnectionIds.index] = {
 						type: 'number',
@@ -343,6 +345,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 
 								if (cachedValue != null) {
 									console.log(`Iterator ${index}: Using cached value`);
+									await sleep(1);
 									return cachedValue;
 								}
 							}
@@ -385,7 +388,6 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 
 			// wait for queue to finish
 			const iteratorOutputs = await Promise.all(addToQueue);
-			queue.on;
 			await queue.onEmpty();
 
 			if (enableCache) {

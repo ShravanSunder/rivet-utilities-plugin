@@ -12164,6 +12164,11 @@ var createGraphDigest = async (graphs) => {
   return digest;
 };
 
+// src/helpers/sleep.ts
+var sleep = (ms) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
 // src/nodes/IteratorNode.ts
 var callGraphConnectionIds = {
   graph: "graph",
@@ -12348,6 +12353,7 @@ function registerIteratorNode(rivet) {
       });
       const addToQueue = iteratorInputs.map((item, index) => {
         return queue.add(async () => {
+          await sleep(1);
           let itemOutput = {};
           itemOutput[callGraphConnectionIds.index] = {
             type: "number",
@@ -12372,6 +12378,7 @@ function registerIteratorNode(rivet) {
                 const cachedValue = await getCachedItem(cacheStorage, cacheKey);
                 if (cachedValue != null) {
                   console.log(`Iterator ${index}: Using cached value`);
+                  await sleep(1);
                   return cachedValue;
                 }
               }
@@ -12408,7 +12415,6 @@ function registerIteratorNode(rivet) {
         });
       });
       const iteratorOutputs = await Promise.all(addToQueue);
-      queue.on;
       await queue.onEmpty();
       if (enableCache) {
         void cleanExpiredCache();
@@ -12519,6 +12525,7 @@ function registerPipelineNode(rivet) {
     const missingKeys = /* @__PURE__ */ new Set();
     const notDataValue = /* @__PURE__ */ new Set();
     const invalidInputs = validateGraphInput(rivet2, stageInput, stageGraph, missingKeys, notDataValue);
+    console.log(stageIdentifier, stageInput);
     if (invalidInputs) {
       outputs[pipelineConnectionIds.pipelineOutput] = {
         type: "control-flow-excluded",
@@ -12558,7 +12565,7 @@ function registerPipelineNode(rivet) {
             graphName: stageGraphRef.graphName
           }
         };
-        const pipelineInputData = {
+        const stageGraphInputs = {
           [callGraphConnectionIds2.graph]: graphDataValue,
           [callGraphConnectionIds2.inputs]: stageGraphInputDataValue
         };
@@ -12567,24 +12574,26 @@ function registerPipelineNode(rivet) {
         const cacheStorage = getCacheStorageForNamespace(cacheNamespace, graphRevalidationDigest);
         let graphOutput = null;
         if (enableCache) {
-          const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
+          const cacheKey = await createDigest(JSON.stringify(stageGraphInputs));
           const cachedValue = await getCachedItem(cacheStorage, cacheKey);
           if (cachedValue != null) {
             graphOutput = cachedValue;
           }
         }
         if (graphOutput == null) {
-          graphOutput = await impl.process(pipelineInputData, context);
+          graphOutput = await impl.process(stageGraphInputs, context);
         }
         if (enableCache) {
-          const cacheKey = await createDigest(JSON.stringify(pipelineInputData));
+          const cacheKey = await createDigest(JSON.stringify(stageGraphInputs));
           setCachedItem(cacheStorage, cacheKey, graphOutput);
         }
         const nextStageInput = rivet2.coerceType(graphOutput[callGraphConnectionIds2.outputs], "object");
+        console.log("next stage input", stageIdentifier, nextStageInput);
         intermediateStageLogsOut.push({
           identifier: stageIdentifier,
           graphName: stageGraphRef.graphName,
-          graphOutput: nextStageInput
+          graphOutput: nextStageInput,
+          graphInput: stageInput
         });
         outputs[pipelineConnectionIds.pipelineOutput] = {
           type: "object",
@@ -12754,8 +12763,7 @@ function registerPipelineNode(rivet) {
         }
       }).filter((f) => f != null);
       const enableCache = data.enableCache;
-      const pipelineInputData = rivet.coerceType(inputData[pipelineConnectionIds.pipelineInput], "object");
-      let nextStageInput = pipelineInputData;
+      let nextStageInput = { pipelineInput: inputData[pipelineConnectionIds.pipelineInput] };
       const intermediateStageLogsOut = [];
       if (inputData[pipelineConnectionIds.prePipelineGraph]) {
         console.log(inputData[pipelineConnectionIds.prePipelineGraph]);
@@ -12783,11 +12791,13 @@ function registerPipelineNode(rivet) {
         if (outputs[pipelineConnectionIds.error] || outputs[pipelineConnectionIds.pipelineOutput]?.type === "control-flow-excluded") {
           return outputs;
         }
-        nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value;
+        nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value ?? {};
+        nextStageInput.pipelineInput = inputData[pipelineConnectionIds.pipelineInput];
       }
       const numberOfPipelineLoops = Math.max(data.numberOfPipelineLoops, 1) ?? 1;
       for (let loopNum = 0; loopNum < numberOfPipelineLoops; loopNum++) {
         for (let pipelineNum = 0; pipelineNum < numOfGraphs; pipelineNum++) {
+          await sleep(1);
           const graph = graphs[pipelineNum];
           const graphRef = rivet.coerceType(
             inputData[pipelineConnectionIds.getGraphId(pipelineNum)],
@@ -12811,6 +12821,8 @@ function registerPipelineNode(rivet) {
           if (outputs[pipelineConnectionIds.error] || outputs[pipelineConnectionIds.pipelineOutput]?.type === "control-flow-excluded") {
             return outputs;
           }
+          nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value;
+          nextStageInput.pipelineInput = inputData[pipelineConnectionIds.pipelineInput];
         }
       }
       if (inputData[pipelineConnectionIds.postPipelineGraph]) {
@@ -12839,10 +12851,12 @@ function registerPipelineNode(rivet) {
           return outputs;
         }
         nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value;
+        nextStageInput.pipelineInput = inputData[pipelineConnectionIds.pipelineInput];
       }
+      const { pipelineInput, ...result } = nextStageInput;
       outputs[pipelineConnectionIds.pipelineOutput] = {
         type: "object",
-        value: nextStageInput
+        value: result
       };
       outputs[pipelineConnectionIds.intermediateStageOutputs] = {
         type: "object[]",
