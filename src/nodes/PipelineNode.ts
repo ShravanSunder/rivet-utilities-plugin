@@ -243,6 +243,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 					const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 
 					if (cachedValue != null) {
+						await sleep(1);
 						graphOutput = cachedValue;
 					}
 				}
@@ -491,6 +492,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			let nextStageInput: Record<string, unknown> = { pipelineInput: inputData[pipelineConnectionIds.pipelineInput] };
 			const intermediateStageLogsOut: Record<string, unknown>[] = [];
 
+			await sleep(1);
 			/** ****************
 			 * Pre Pipeline Graph
 			 */
@@ -529,11 +531,13 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 				nextStageInput.pipelineInput = inputData[pipelineConnectionIds.pipelineInput];
 			}
 
+			await sleep(1);
 			/** ****************
 			 * Pipeline Graphs
 			 */
 			const numberOfPipelineLoops = Math.max(data.numberOfPipelineLoops, 1) ?? 1;
 			for (let loopNum = 0; loopNum < numberOfPipelineLoops; loopNum++) {
+				await sleep(1);
 				for (let pipelineNum = 0; pipelineNum < numOfGraphs; pipelineNum++) {
 					await sleep(1);
 					const graph = graphs[pipelineNum];
@@ -541,6 +545,8 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 						inputData[pipelineConnectionIds.getGraphId(pipelineNum)],
 						'graph-reference'
 					);
+
+					nextStageInput.pipelineIndex = pipelineNum;
 
 					outputs = await processPipelineStage(
 						rivet,
@@ -570,6 +576,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 				}
 			}
 
+			await sleep(1);
 			/**  ****************
 			 * Post Pipeline Graph
 			 */

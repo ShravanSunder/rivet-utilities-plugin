@@ -344,8 +344,8 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 								const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 
 								if (cachedValue != null) {
-									console.log(`Iterator ${index}: Using cached value`);
 									await sleep(1);
+									console.log(`Iterator ${index}: Using cached value`);
 									return cachedValue;
 								}
 							}
@@ -389,6 +389,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 			// wait for queue to finish
 			const iteratorOutputs = await Promise.all(addToQueue);
 			await queue.onEmpty();
+			await sleep(1);
 
 			if (enableCache) {
 				void cleanExpiredCache();

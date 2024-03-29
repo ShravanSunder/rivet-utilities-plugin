@@ -12377,8 +12377,8 @@ function registerIteratorNode(rivet) {
                 const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
                 const cachedValue = await getCachedItem(cacheStorage, cacheKey);
                 if (cachedValue != null) {
-                  console.log(`Iterator ${index}: Using cached value`);
                   await sleep(1);
+                  console.log(`Iterator ${index}: Using cached value`);
                   return cachedValue;
                 }
               }
@@ -12416,6 +12416,7 @@ function registerIteratorNode(rivet) {
       });
       const iteratorOutputs = await Promise.all(addToQueue);
       await queue.onEmpty();
+      await sleep(1);
       if (enableCache) {
         void cleanExpiredCache();
       }
@@ -12577,6 +12578,7 @@ function registerPipelineNode(rivet) {
           const cacheKey = await createDigest(JSON.stringify(stageGraphInputs));
           const cachedValue = await getCachedItem(cacheStorage, cacheKey);
           if (cachedValue != null) {
+            await sleep(1);
             graphOutput = cachedValue;
           }
         }
@@ -12765,6 +12767,7 @@ function registerPipelineNode(rivet) {
       const enableCache = data.enableCache;
       let nextStageInput = { pipelineInput: inputData[pipelineConnectionIds.pipelineInput] };
       const intermediateStageLogsOut = [];
+      await sleep(1);
       if (inputData[pipelineConnectionIds.prePipelineGraph]) {
         console.log(inputData[pipelineConnectionIds.prePipelineGraph]);
         const prePipelineGraphRef = rivet.coerceType(
@@ -12794,8 +12797,10 @@ function registerPipelineNode(rivet) {
         nextStageInput = outputs[pipelineConnectionIds.pipelineOutput]?.value ?? {};
         nextStageInput.pipelineInput = inputData[pipelineConnectionIds.pipelineInput];
       }
+      await sleep(1);
       const numberOfPipelineLoops = Math.max(data.numberOfPipelineLoops, 1) ?? 1;
       for (let loopNum = 0; loopNum < numberOfPipelineLoops; loopNum++) {
+        await sleep(1);
         for (let pipelineNum = 0; pipelineNum < numOfGraphs; pipelineNum++) {
           await sleep(1);
           const graph = graphs[pipelineNum];
@@ -12803,6 +12808,7 @@ function registerPipelineNode(rivet) {
             inputData[pipelineConnectionIds.getGraphId(pipelineNum)],
             "graph-reference"
           );
+          nextStageInput.pipelineIndex = pipelineNum;
           outputs = await processPipelineStage(
             rivet,
             {
@@ -12825,6 +12831,7 @@ function registerPipelineNode(rivet) {
           nextStageInput.pipelineInput = inputData[pipelineConnectionIds.pipelineInput];
         }
       }
+      await sleep(1);
       if (inputData[pipelineConnectionIds.postPipelineGraph]) {
         const postPipelineGraphRef = rivet.coerceType(
           inputData[pipelineConnectionIds.postPipelineGraph],
