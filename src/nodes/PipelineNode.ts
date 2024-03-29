@@ -539,7 +539,7 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 			for (let loopNum = 0; loopNum < numberOfPipelineLoops; loopNum++) {
 				await sleep(1);
 				for (let pipelineNum = 0; pipelineNum < numOfGraphs; pipelineNum++) {
-					await sleep(1);
+					await sleep(10);
 					const graph = graphs[pipelineNum];
 					const graphRef = rivet.coerceType(
 						inputData[pipelineConnectionIds.getGraphId(pipelineNum)],

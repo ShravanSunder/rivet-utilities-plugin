@@ -12377,7 +12377,7 @@ function registerIteratorNode(rivet) {
                 const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
                 const cachedValue = await getCachedItem(cacheStorage, cacheKey);
                 if (cachedValue != null) {
-                  await sleep(1);
+                  await sleep(10);
                   console.log(`Iterator ${index}: Using cached value`);
                   return cachedValue;
                 }
@@ -12411,6 +12411,7 @@ function registerIteratorNode(rivet) {
             };
             abortIteration = true;
           }
+          await sleep(10);
           return itemOutput;
         });
       });
@@ -12802,7 +12803,7 @@ function registerPipelineNode(rivet) {
       for (let loopNum = 0; loopNum < numberOfPipelineLoops; loopNum++) {
         await sleep(1);
         for (let pipelineNum = 0; pipelineNum < numOfGraphs; pipelineNum++) {
-          await sleep(1);
+          await sleep(10);
           const graph = graphs[pipelineNum];
           const graphRef = rivet.coerceType(
             inputData[pipelineConnectionIds.getGraphId(pipelineNum)],

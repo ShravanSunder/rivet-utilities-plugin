@@ -344,7 +344,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 								const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 
 								if (cachedValue != null) {
-									await sleep(1);
+									await sleep(10);
 									console.log(`Iterator ${index}: Using cached value`);
 									return cachedValue;
 								}
@@ -382,6 +382,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 						};
 						abortIteration = true;
 					}
+					await sleep(10);
 					return itemOutput;
 				}) as Promise<Outputs>;
 			});
