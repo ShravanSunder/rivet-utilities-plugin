@@ -382,7 +382,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 						};
 						abortIteration = true;
 					}
-					await sleep(10);
+					await sleep(1);
 					return itemOutput;
 				}) as Promise<Outputs>;
 			});

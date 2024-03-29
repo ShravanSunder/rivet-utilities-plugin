@@ -34,6 +34,14 @@ export const cleanExpiredCache = async (): Promise<void> => {
 					value,
 				});
 			storageMap.delete(key);
+			localStorage.removeItem(key);
+		} else {
+			if (DEBUG_CACHE)
+				console.log('iterator', 'keep cache', {
+					key,
+					value,
+				});
+			localStorage.setItem(key, JSON.stringify(value));
 		}
 	});
 };
@@ -50,11 +58,16 @@ export const cleanExpiredCache = async (): Promise<void> => {
 export const getCacheStorageForNamespace = (namespace: string, revalidationDigest: string): CacheStorage => {
 	let cacheStorage = storageMap.get(namespace);
 	if (cacheStorage?.cache == null) {
-		cacheStorage = {
-			cache: new Map<string, string>(),
-			expiryTimestamp: Date.now() + 3 * 60 * 60 * 1000 /** 3 hours */,
-			revalidationDigest,
-		};
+		const ls = localStorage.getItem(namespace);
+		if (ls == null) {
+			cacheStorage = {
+				cache: new Map<string, string>(),
+				expiryTimestamp: Date.now() + 3 * 60 * 60 * 1000 /** 3 hours */,
+				revalidationDigest,
+			};
+		} else {
+			cacheStorage = JSON.parse(ls) as CacheStorage;
+		}
 	}
 
 	if (cacheStorage.revalidationDigest !== revalidationDigest) {
