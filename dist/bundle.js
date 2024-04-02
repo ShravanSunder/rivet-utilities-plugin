@@ -12435,7 +12435,7 @@ function registerIteratorNode(rivet) {
         void cleanExpiredCache();
       }
       const errorInIteratorOutputs = iteratorOutputs.some(
-        (f) => f[callGraphConnectionIds.outputs]?.type === "control-flow-excluded"
+        (f) => f[callGraphConnectionIds.outputs]?.type === "control-flow-excluded" || f[callGraphConnectionIds.outputs]?.type !== "object"
       );
       if (errorInIteratorOutputs) {
         const wasAborted = iteratorOutputs.some(
@@ -12459,7 +12459,7 @@ function registerIteratorNode(rivet) {
       }
       outputs[iteratorConnectionIds.iteratorOutputs] = {
         type: "object[]",
-        value: iteratorOutputs
+        value: iteratorOutputs.map((m) => m[callGraphConnectionIds.outputs])
       };
       return outputs;
     }

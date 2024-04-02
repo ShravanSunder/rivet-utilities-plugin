@@ -1,5 +1,13 @@
 <h1 align="center"><img src="https://rivet.ironcladapp.com/img/logo-banner-wide.png" alt="Rivet Logo"></h1>
 
+## Breaking changes
+
+v0.8.0 Iterator node output is no longer embedded in outputs.  Its more flat to make it consistent to the inputs.  
+
+v0.7.0 pipelineInput is available to all stages.  However it is always available as `pipelineInput`.  Even to the first stage.
+
+v0.3.0 has renamed the Iterator Node (from Iterator Plugin Node).  You'll have to readd the node
+
 ## Description
 
 This is an utilities plugin for rivet
@@ -80,12 +88,6 @@ This node will allow you to upsert into pinecone.  It allows you to upsert `spar
 ## Installation
 
 See [Rivet Plugins](https://rivet.ironcladapp.com/docs/user-guide/plugins) for more details
-
-## Breaking changes
-
-v0.7.0 pipelineInput is available to all stages.  However it is always available as `pipelineInput`.  Even to the first stage.
-
-v0.3.0 has renamed the Iterator Node (from Iterator Plugin Node).  You'll have to readd the node
 
 ## Source
 
