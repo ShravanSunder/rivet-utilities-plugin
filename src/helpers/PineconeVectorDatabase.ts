@@ -11,6 +11,7 @@ import type {
 import { PineconeQuery, PineconeQueryResult } from './models/PineconeQuery';
 import { PineconeSparseVector } from './models/PineconeSparseVector';
 import { PineconeUpsertRequest } from './models/PineconeUpsert';
+import { stringify } from 'superjson';
 
 /**
  * Retrieves the host from a given Pinecone collection URL.
@@ -54,7 +55,7 @@ export class PineconeVectorDatabase {
 
 		const response = await fetch(`${collectionDetails.host}/vectors/upsert`, {
 			method: 'POST',
-			body: JSON.stringify({
+			body: stringify({
 				vectors,
 				namespace: params.namespace,
 			}),
@@ -83,7 +84,7 @@ export class PineconeVectorDatabase {
 
 		const response = await fetch(`${collectionDetails.host}/query`, {
 			method: 'POST',
-			body: JSON.stringify({
+			body: stringify({
 				...req,
 			}),
 			headers: {

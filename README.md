@@ -2,7 +2,9 @@
 
 ## Breaking changes
 
-v0.8.0 Iterator node output is no longer embedded in outputs.  Its more flat to make it consistent to the inputs.  
+v0.9.0 Pipeline node can have multiple `post-pipeline` graphs.  The post pipeline node port name has changed to have index numbers.
+
+v0.8.0 Iterator node output is no longer embedded in outputs.  Its more flat to make it consistent to the inputs.
 
 v0.7.0 pipelineInput is available to all stages.  However it is always available as `pipelineInput`.  Even to the first stage.
 

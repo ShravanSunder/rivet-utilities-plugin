@@ -1,6 +1,7 @@
 import type { NodeGraph, Outputs } from '@ironclad/rivet-core';
 import { compressObject, decompressObject } from './lzObject.js';
 import { createDigest } from './createDigest.js';
+import { parse, stringify } from 'superjson';
 
 export type CacheStorage = {
 	/**
@@ -18,7 +19,7 @@ export type CacheStorage = {
  */
 const storageMap: Map<string, CacheStorage> = new Map();
 
-const DEBUG_CACHE = false;
+const DEBUG_CACHE = true;
 
 /**
  * Cleans up expired cache entries.
@@ -41,7 +42,7 @@ export const cleanExpiredCache = async (): Promise<void> => {
 					key,
 					value,
 				});
-			localStorage.setItem(key, JSON.stringify(value));
+			localStorage.setItem(key, stringify(value));
 		}
 	});
 };
@@ -66,7 +67,7 @@ export const getCacheStorageForNamespace = (namespace: string, revalidationDiges
 				revalidationDigest,
 			};
 		} else {
-			cacheStorage = JSON.parse(ls) as CacheStorage;
+			cacheStorage = parse(ls) as CacheStorage;
 		}
 	}
 
@@ -122,7 +123,7 @@ export const setCachedItem = async <T extends Record<string, unknown>>(
  */
 export const createGraphDigest = async (graphs: NodeGraph[]) => {
 	const digest = await createDigest(
-		JSON.stringify(
+		stringify(
 			graphs.map((g) => {
 				return { nodes: g.nodes.map((m) => m.data), connections: g.connections };
 			})

@@ -54,6 +54,7 @@ import {
 	ObjectDataValue,
 } from '@ironclad/rivet-core';
 import { sleep } from '../helpers/sleep.js';
+import { stringify } from 'superjson';
 
 const callGraphConnectionIds = {
 	graph: 'graph' as PortId,
@@ -340,7 +341,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 							};
 
 							if (enableCache) {
-								const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
+								const cacheKey = await createDigest(stringify(iteratorInputData));
 								const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 
 								if (cachedValue != null) {
@@ -351,7 +352,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 							}
 							itemOutput = await impl.process(iteratorInputData, context);
 							if (enableCache) {
-								const cacheKey = await createDigest(JSON.stringify(iteratorInputData));
+								const cacheKey = await createDigest(stringify(iteratorInputData));
 								setCachedItem(cacheStorage, cacheKey, itemOutput);
 							}
 						} else {
@@ -377,7 +378,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 							type: 'string',
 							value: rivet.dedent`Error running graph ${graphRef.graphName}.  
 							Message::: ${rivet.getError(err).message}
-							Input::: JSON ${JSON.stringify(item)}
+							Input::: JSON ${JSON.stringify(item, null, 2)}
 							`,
 						};
 						abortIteration = true;

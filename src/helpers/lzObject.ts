@@ -1,4 +1,5 @@
 import * as LZString from 'lz-string';
+import { parse, stringify } from 'superjson';
 
 /**
  * Function to compress an object
@@ -7,7 +8,7 @@ import * as LZString from 'lz-string';
  */
 export const compressObject = <T extends Record<string, unknown>>(obj: T): string => {
 	try {
-		const jsonString = JSON.stringify(obj);
+		const jsonString = stringify(obj);
 		return LZString.compressToUTF16(jsonString);
 	} catch (error) {
 		console.error('Error compressing object:', error);
@@ -25,7 +26,7 @@ export const decompressObject = <T extends Record<string, unknown>>(compressedDa
 		if (!decompressed) {
 			throw new Error('Decompression returned null or undefined.');
 		}
-		return JSON.parse(decompressed) as T;
+		return parse(decompressed) as T;
 	} catch (error) {
 		console.error('Error decompressing object:', error);
 		throw error;
