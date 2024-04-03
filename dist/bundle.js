@@ -12882,16 +12882,16 @@ var cleanExpiredCache = async () => {
           value
         });
       storageMap.delete(key);
-      global.localStorage?.removeItem?.(`cache-${key}`);
+      globalThis.localStorage?.removeItem?.(`cache-${key}`);
     } else {
-      global.localStorage?.setItem?.(`cache-${key}`, stringify(value));
+      globalThis.localStorage?.setItem?.(`cache-${key}`, stringify(value));
     }
   });
 };
 var getCacheStorageForNamespace = (namespace, revalidationDigest) => {
   let cacheStorage = storageMap.get(namespace);
   if (cacheStorage?.cache == null) {
-    const ls = global.localStorage?.getItem?.(`cache-${namespace}`);
+    const ls = globalThis.localStorage?.getItem?.(`cache-${namespace}`);
     if (ls == null) {
       cacheStorage = {
         cache: /* @__PURE__ */ new Map(),
