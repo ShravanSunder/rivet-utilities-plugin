@@ -33,6 +33,7 @@ import {
 	getCachedItem,
 	setCachedItem,
 	createGraphDigest,
+	createObjectDigest,
 } from '../helpers/cacheStorage';
 import {
 	PortId,
@@ -465,6 +466,10 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 
 			const { pipelineInput, ...result } = nextStageInput;
 
+			if (enableCache) {
+				void cleanExpiredCache();
+			}
+
 			outputs[pipelineConnectionIds.pipelineOutput] = {
 				type: 'object',
 				value: result,
@@ -601,13 +606,10 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 				const graphRevalidationDigest = await createGraphDigest([stageGraph]);
 				const cacheNamespace = stageGraphRef.graphId as string;
 				const cacheStorage = getCacheStorageForNamespace(cacheNamespace, graphRevalidationDigest);
+				const cacheKey = await createObjectDigest(stageInput);
 
 				let graphOutput: Outputs | null = null;
 				if (enableCache) {
-					/**
-					 * Check if the item is in the cache
-					 */
-					const cacheKey = await createDigest(stringify(stageGraphInputs));
 					const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 
 					if (cachedValue != null) {
@@ -618,15 +620,15 @@ export function registerPipelineNode(rivet: typeof Rivet) {
 
 				if (graphOutput == null) {
 					graphOutput = await impl.process(stageGraphInputs, context);
+
+					if (enableCache) {
+						/**
+						 * Set the item in the cache
+						 */
+						setCachedItem(cacheStorage, cacheKey, graphOutput);
+					}
 				}
 
-				if (enableCache) {
-					/**
-					 * Set the item in the cache
-					 */
-					const cacheKey = await createDigest(stringify(stageGraphInputs));
-					setCachedItem(cacheStorage, cacheKey, graphOutput);
-				}
 				const nextStageInput = rivet.coerceType(graphOutput[callGraphConnectionIds.outputs], 'object');
 				intermediateStageLogsOut.push({
 					identifier: stageIdentifier,

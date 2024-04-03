@@ -19,7 +19,7 @@ export type CacheStorage = {
  */
 const storageMap: Map<string, CacheStorage> = new Map();
 
-const DEBUG_CACHE = true;
+const DEBUG_CACHE = false;
 
 /**
  * Cleans up expired cache entries.
@@ -30,19 +30,19 @@ export const cleanExpiredCache = async (): Promise<void> => {
 	storageMap.forEach((value, key) => {
 		if (value.expiryTimestamp < now) {
 			if (DEBUG_CACHE)
-				console.log('iterator', 'delete cache', {
+				console.log('cache', 'delete cache', {
 					key,
 					value,
 				});
 			storageMap.delete(key);
-			localStorage.removeItem(key);
+			localStorage?.removeItem?.(`cache-${key}`);
 		} else {
-			if (DEBUG_CACHE)
-				console.log('iterator', 'keep cache', {
-					key,
-					value,
-				});
-			localStorage.setItem(key, stringify(value));
+			// if (DEBUG_CACHE)
+			// 	console.log('cache', 'localstorage set cache', {
+			// 		key,
+			// 		value,
+			// 	});
+			localStorage?.setItem?.(`cache-${key}`, stringify(value));
 		}
 	});
 };
@@ -59,7 +59,7 @@ export const cleanExpiredCache = async (): Promise<void> => {
 export const getCacheStorageForNamespace = (namespace: string, revalidationDigest: string): CacheStorage => {
 	let cacheStorage = storageMap.get(namespace);
 	if (cacheStorage?.cache == null) {
-		const ls = localStorage.getItem(namespace);
+		const ls = localStorage?.getItem?.(`cache-${namespace}`);
 		if (ls == null) {
 			cacheStorage = {
 				cache: new Map<string, string>(),
@@ -74,7 +74,7 @@ export const getCacheStorageForNamespace = (namespace: string, revalidationDiges
 	if (cacheStorage.revalidationDigest !== revalidationDigest) {
 		cacheStorage.cache.clear();
 		if (DEBUG_CACHE)
-			console.log('iterator', 'invalidate cache check', cacheStorage.cache, {
+			console.log('cache', 'invalidate cache check', cacheStorage.cache, {
 				cacheStorage,
 				revalidationDigest,
 				storageMap,
@@ -92,7 +92,7 @@ export const getCachedItem = async <T extends Record<string, unknown>>(
 ): Promise<T | null> => {
 	const cachedOutputCompressed = cacheStorage.cache.get(cacheKey);
 	if (DEBUG_CACHE && cachedOutputCompressed)
-		console.log('iterator', 'get cache', {
+		console.log('cache', 'get cache item', {
 			cacheKey,
 			cachedOutputCompressed,
 			storageMap,
@@ -109,7 +109,7 @@ export const setCachedItem = async <T extends Record<string, unknown>>(
 	const compressedOutput = compressObject(item);
 	cacheStorage.cache.set(cacheKey, compressedOutput);
 	if (DEBUG_CACHE)
-		console.log('iterator', 'set cache', {
+		console.log('cache', 'set cache item', {
 			cacheKey,
 			compressedOutput,
 			storageMap,
@@ -129,9 +129,19 @@ export const createGraphDigest = async (graphs: NodeGraph[]) => {
 			})
 		)
 	);
+	// if (DEBUG_CACHE)
+	// console.log('cache', 'create graphs digest', {
+	// 	graphs,
+	// 	digest,
+	// });
+	return digest;
+};
+
+export const createObjectDigest = async (object: Record<string, unknown>) => {
+	const digest = await createDigest(stringify(object));
 	if (DEBUG_CACHE)
-		console.log('create graphs digest', {
-			graphs,
+		console.log('cache', 'create object digest', {
+			object,
 			digest,
 		});
 	return digest;

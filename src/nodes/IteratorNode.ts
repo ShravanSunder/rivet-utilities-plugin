@@ -34,6 +34,7 @@ import {
 	getCachedItem,
 	setCachedItem,
 	createGraphDigest,
+	createObjectDigest,
 } from '../helpers/cacheStorage';
 import {
 	PortId,
@@ -341,10 +342,14 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 							};
 
 							if (enableCache) {
-								const cacheKey = await createDigest(stringify(iteratorInputData));
+								const cacheKey = await createObjectDigest(iteratorInputData);
 								const cachedValue = await getCachedItem<Outputs>(cacheStorage, cacheKey);
 
 								if (cachedValue != null) {
+									/**
+									 * return cached value
+									 * sleep to allow ux to refresh
+									 */
 									await sleep(10);
 									console.log(`Iterator ${index}: Using cached value`);
 									return cachedValue;
@@ -352,7 +357,7 @@ export function registerIteratorNode(rivet: typeof Rivet) {
 							}
 							itemOutput = await impl.process(iteratorInputData, context);
 							if (enableCache) {
-								const cacheKey = await createDigest(stringify(iteratorInputData));
+								const cacheKey = await createObjectDigest(iteratorInputData);
 								setCachedItem(cacheStorage, cacheKey, itemOutput);
 							}
 						} else {
