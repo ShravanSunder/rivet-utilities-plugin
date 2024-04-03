@@ -35,14 +35,15 @@ export const cleanExpiredCache = async (): Promise<void> => {
 					value,
 				});
 			storageMap.delete(key);
-			localStorage?.removeItem?.(`cache-${key}`);
+
+			global.localStorage?.removeItem?.(`cache-${key}`);
 		} else {
 			// if (DEBUG_CACHE)
 			// 	console.log('cache', 'localstorage set cache', {
 			// 		key,
 			// 		value,
 			// 	});
-			localStorage?.setItem?.(`cache-${key}`, stringify(value));
+			global.localStorage?.setItem?.(`cache-${key}`, stringify(value));
 		}
 	});
 };
@@ -59,7 +60,7 @@ export const cleanExpiredCache = async (): Promise<void> => {
 export const getCacheStorageForNamespace = (namespace: string, revalidationDigest: string): CacheStorage => {
 	let cacheStorage = storageMap.get(namespace);
 	if (cacheStorage?.cache == null) {
-		const ls = localStorage?.getItem?.(`cache-${namespace}`);
+		const ls = global.localStorage?.getItem?.(`cache-${namespace}`);
 		if (ls == null) {
 			cacheStorage = {
 				cache: new Map<string, string>(),
