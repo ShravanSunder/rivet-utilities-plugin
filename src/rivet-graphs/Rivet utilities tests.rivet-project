@@ -1,0 +1,762 @@
+version: 4
+data:
+  attachedData:
+    trivet:
+      testSuites:
+        - id: CaVEcXKIijlVMFLpOIqrn
+          testCases: []
+          testGraph: 733-vi8CJgKG_Q9k0lzTp
+          validationGraph: REZBUDekascE3pv7B81ge
+      version: 1
+  graphs:
+    -TECwHZNG0PXWwt85Fqz3:
+      metadata:
+        description: ""
+        id: -TECwHZNG0PXWwt85Fqz3
+        name: pipeline/post pipeline.setup
+      nodes:
+        '[6Mkst4CxIP851TllmMAWz]:graphInput "Graph Input"':
+          data:
+            code: ""
+            dataType: object
+            id: data
+            useDefaultValueInput: false
+          outgoingConnections:
+            - data->"Delay" ppwNRYqvO_3j4LJnF5vfG/input1
+          visualData: 14.268773767637839/358.48318041240884/330/6/var(--node-color-3)/var(--node-color-3)
+        '[ppwNRYqvO_3j4LJnF5vfG]:delay "Delay"':
+          data:
+            delay: 500
+          outgoingConnections:
+            - output1->"Code" rjmGGSbZyLUmJT2zIfWP2/input1
+          visualData: 456.523603596246/367.00535484867004/205/11//
+        '[rjmGGSbZyLUmJT2zIfWP2]:code "Code"':
+          data:
+            code: |-
+              const data = inputs.input1.value;
+
+
+              return {
+                output1: {
+                  type: `string`,
+                  value: 'pipeline is done: ' + data.message
+                }
+              };
+            inputNames: input1
+            outputNames: output1
+          outgoingConnections:
+            - output1->"Graph Output" sY65263lgslo1PWQBxOtC/value
+          visualData: 1178.8793330989101/315.6173118302577/230/16/var(--node-color-5)/var(--grey-darkish)
+        '[sY65263lgslo1PWQBxOtC]:graphOutput "Graph Output"':
+          data:
+            dataType: string
+            id: resultData
+          visualData: 1945.134110466601/326.19113147764983/330/17/var(--node-color-3)/var(--node-color-3)
+    15aK2UCpIgh48DLvG9PzZ:
+      metadata:
+        description: ""
+        id: 15aK2UCpIgh48DLvG9PzZ
+        name: pipeline/pre pipeline.setup
+      nodes:
+        '[Ff-dYBWyVjSq6paAftTjt]:graphInput "Graph Input"':
+          data:
+            code: ""
+            dataType: object
+            id: inputData
+            useDefaultValueInput: false
+          outgoingConnections:
+            - data->"Delay" u0JyxZcA5YOl2gIZEzbRR/input1
+          visualData: 14.268773767637839/358.48318041240884/330/6/var(--node-color-3)/var(--node-color-3)
+        '[Hc9B8o7izqoH1KJAAVxy5]:graphOutput "Graph Output"':
+          data:
+            dataType: object
+            id: data
+          visualData: 1945.134110466601/326.19113147764983/330/17/var(--node-color-3)/var(--node-color-3)
+        '[cr18iomS5CB80SJtu_R3L]:code "Code"':
+          data:
+            code: |-
+              const inputData = inputs.input1.value;
+
+
+              return {
+                output1: {
+                  type: `object`,
+                  value: {
+                    id: 1,
+                    model: inputData.model,
+                    message: `The model says: ${inputData.response}`
+                  }
+                }
+              };
+            inputNames: input1
+            outputNames: output1
+          outgoingConnections:
+            - output1->"Graph Output" Hc9B8o7izqoH1KJAAVxy5/value
+          visualData: 1178.8793330989101/315.6173118302577/230/16/var(--node-color-5)/var(--grey-darkish)
+        '[u0JyxZcA5YOl2gIZEzbRR]:delay "Delay"':
+          data:
+            delay: 500
+          outgoingConnections:
+            - output1->"Code" cr18iomS5CB80SJtu_R3L/input1
+          visualData: 456.523603596246/367.00535484867004/205/11//
+    99I52zb0XshbUz6paE-3c:
+      metadata:
+        description: ""
+        id: 99I52zb0XshbUz6paE-3c
+        name: Untitled Graph
+      nodes: {}
+    Nh8n48WGfMy3A1mgYtVqC:
+      metadata:
+        description: ""
+        id: Nh8n48WGfMy3A1mgYtVqC
+        name: iterator/iterator.test
+      nodes:
+        '[4XskRFsqxxOcK4yRW2mKS]:comment "Comment"':
+          data:
+            backgroundColor: rgba(58,34,34,0.05)
+            color: rgba(234,234,234,1)
+            height: 125.46467908273257
+            text: "🧪 TEST WITH ARRAY OBJECT DATAVALUES"
+          visualData: 2058.721342498723/-331.48866344211416/706.297835912188/48//
+        '[HbPYYKkv8Zwo8gx2w0yae]:object "Object"':
+          data:
+            jsonTemplate: |
+              [
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 1, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String1"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 2, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String2"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 3, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String3"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 4, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String4"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 5, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String5"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 6, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String6"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 7, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String7"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 8, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String8"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 9, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String9"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "input": {
+                      "type": "object",
+                      "value": {"id": 10, "model": "blah"}
+                    }, 
+                    "inputString": {
+                      "type": "string",
+                      "value": "String10"
+                    }
+                  }
+                }
+              ]
+          visualData: 2050.607315226117/125.35021300282685/241.2159968964346/48//
+        '[IlsIyQaqXxJSbLk5baLZy]:comment "Comment"':
+          data:
+            backgroundColor: rgba(58,34,34,0.05)
+            color: rgba(234,234,234,1)
+            height: 125.46467908273257
+            text: "🧪 TEST WITH ERRORS"
+          visualData: 1961.8708074684234/1024.1682730980199/706.297835912188/34//
+        '[NOpbl4AlvrNoSjJMucfgM]:comment "Comment"':
+          data:
+            backgroundColor: rgba(58,34,34,0.05)
+            color: rgba(234,234,234,1)
+            height: 125.46467908273257
+            text: "🧪 TEST WITH ARRAY OBJECTS"
+          visualData: 43.54333938445707/-51.831486164342465/706.297835912188/41//
+        '[N_5LjP3_Qxoid7fKIg3lc]:callGraph "Call Graph"':
+          data:
+            useErrorOutput: false
+          visualData: 405.7479038791429/1523.8757262101549/568.9863979607467/36//
+        '[Nt3tlJtsUbhuz-eUY1rVk]:graphReference "Graph Reference"':
+          data:
+            graphId: s1BLSPV3YQR45YOdWKcMh
+            useGraphIdOrNameInput: false
+          visualData: 2025.4416684255862/1202.113343969822/223.67289032743008/31/var(--node-color-5)/var(--node-color-5)
+        '[T1vjZBU3BUNhfrhOrDURs]:comment "Comment"':
+          data:
+            backgroundColor: rgba(58,34,34,0.05)
+            color: rgba(234,234,234,1)
+            height: 125.46467908273257
+            text: "🧪  SIMPLE CALL GRAPH"
+          visualData: 331.334069157664/1174.436595501354/706.297835912188/36//
+        '[TuIA-30pit8FvwFm5OD5c]:graphReference "Graph Reference"':
+          data:
+            graphId: s1BLSPV3YQR45YOdWKcMh
+            useGraphIdOrNameInput: false
+          outgoingConnections:
+            - graph->"Call Graph" N_5LjP3_Qxoid7fKIg3lc/graph
+          visualData: 111.0213389812665/1316.4863950436734/223.67289032743008/36/var(--node-color-5)/var(--node-color-5)
+        '[Y3RQf9ecMwK8BSNGN8L3m]:iteratorNode "Iterator Node"':
+          data:
+            chunkSize: 1
+            hasCache: false
+            iteratorOutputs: []
+            useChunkSizeToggle: false
+          outgoingConnections:
+            - iteratorOutputs->"Text" ymayAvCkCfnbBp5VwY8vU/input
+          visualData: 644.7286313055876/274.0099795270081/230/null/var(--node-color-5)/var(--node-color-5)
+        '[Ys07ZspmgKL8tJQoYEIxT]:object "Object"':
+          data:
+            jsonTemplate: |-
+              {
+                  "input": {
+                      "type": "object",
+                      "value": {"id": 1, "model": "blah"}
+                  }, 
+                  "inputString": {
+                      "type": "string",
+                      "value": "String1"
+                  }
+              }
+          outgoingConnections:
+            - output->"Call Graph" N_5LjP3_Qxoid7fKIg3lc/inputs
+          visualData: -0.392679580342957/1559.61609755459/230/36//
+        '[brcBjv1V1TQUF8vJSGQMB]:graphReference "Graph Reference"':
+          data:
+            graphId: s1BLSPV3YQR45YOdWKcMh
+            useGraphIdOrNameInput: false
+          outgoingConnections:
+            - graph->"Iterator Node" Y3RQf9ecMwK8BSNGN8L3m/graph
+          visualData: 50.32112571297913/122.15127717522873/223.67289032743008/53/var(--node-color-5)/var(--node-color-5)
+        '[cjQ8FLp5a9HjS1UYMwh1M]:graphReference "Graph Reference"':
+          data:
+            graphId: s1BLSPV3YQR45YOdWKcMh
+            useGraphIdOrNameInput: false
+          visualData: 2055.9693711390787/-128.40943451116812/223.67289032743008/48/var(--node-color-5)/var(--node-color-5)
+        '[n42_FClOE_hISfMCMiKYA]:text "Text"':
+          data:
+            text: "{{input}}"
+          visualData: 3376.972463584209/-2.3598074882964304/330/52//
+        '[qupgGGAmFF-cnm5D4WzcK]:object "Object"':
+          data:
+            jsonTemplate: |
+              [
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 1, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String1"
+                  }
+                },
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 2, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String2"
+                  }
+                },
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 3, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String3"
+                  }
+                },
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 4, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String4"
+                  }
+                },
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 5, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String5"
+                  }
+                },
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 6, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String6"
+                  }
+                },
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 7, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String7"
+                  }
+                },
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 8, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String8"
+                  }
+                },
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 9, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String9"
+                  }
+                },
+                {
+                  "input": {
+                    "type": "object",
+                    "value": {"id": 10, "model": "blah"}
+                  }, 
+                  "inputString": {
+                    "type": "string",
+                    "value": "String10"
+                  }
+                }
+              ]
+          outgoingConnections:
+            - output->"Iterator Node" Y3RQf9ecMwK8BSNGN8L3m/iteratorInputs
+          visualData: 53.72627321087802/368.7979795450271/241.2159968964346/54//
+        '[t9Z2H2B9hKI574bahmaKT]:text "Text"':
+          data:
+            text: "{{input}}"
+          visualData: 3438.5524066521602/1419.1632194242297/330/52//
+        '[ymayAvCkCfnbBp5VwY8vU]:text "Text"':
+          data:
+            text: "{{input}}"
+          visualData: 1244.8515986664063/223.34737278243878/330/51//
+        '[ymyExYfRxCd3MR5mlnqlE]:object "Object"':
+          data:
+            jsonTemplate: >
+              [
+                {"inputttttt": {"id": 1, "model": "blah"}, "inputString": "String1"},
+                {"input": {"id": 2, "model": "blah"}, "inputString": "String2"},
+                {"input": {"id": 3, "model": "blah"}, "inputString": "String3"},
+                {"input": {"id": 4, "model": "blah"}, "inputString": "String4"},
+                {"input": {"id": 5, "model": "blah"}, "inputString": "String5"},
+                {"input": {"id": 6, "model": "blah"}, "inputString": "String6"},
+                {"inputttttt": {"id": 7, "model": "blah"}, "inputString": "String7"},
+                {"input": {"id": 8, "model": "blah"}, "inputString": "String8"},
+                {"input": {"id": 9, "model": "blah"}, "inputString": "String9"},
+                {"input": {"id": 10, "model": "blah"}, "inputString": "String10"}
+              ]
+          visualData: 1946.9591269240498/1473.7887648129642/241.2159968964346/29//
+    P-B1wmoj_JLk_JwTYNVaq:
+      metadata:
+        description: ""
+        id: P-B1wmoj_JLk_JwTYNVaq
+        name: pipeline/pipeline1.setup
+      nodes:
+        '[5M83haTR8oXV5bBJPGV9K]:graphOutput "Graph Output"':
+          data:
+            dataType: object
+            id: data
+          visualData: 1945.134110466601/326.19113147764983/330/17/var(--node-color-3)/var(--node-color-3)
+        '[_dad_w0j1azRcwoHBw0NJ]:graphInput "Graph Input"':
+          data:
+            code: ""
+            dataType: object
+            id: data
+            useDefaultValueInput: false
+          outgoingConnections:
+            - data->"Delay" eeqaHPEuyx2T09D1S7gWy/input1
+          visualData: 14.268773767637839/358.48318041240884/330/6/var(--node-color-3)/var(--node-color-3)
+        '[eeqaHPEuyx2T09D1S7gWy]:delay "Delay"':
+          data:
+            delay: 1000
+          outgoingConnections:
+            - output1->"Code" rQpXV0r2sFJlkUGUM9ZUp/input1
+          visualData: 456.523603596246/367.00535484867004/205/11//
+        '[rQpXV0r2sFJlkUGUM9ZUp]:code "Code"':
+          data:
+            code: >-
+              const data = inputs.input1.value;
+
+
+
+              return {
+                output1: {
+                  type: `object`,
+                  value: {
+                    id: data.id +1,
+                    model: data.model,
+                    message: `this is pipeline1 ${data.id + 1}. \n\n${data.message}`
+                  }
+                }
+              };
+            inputNames: input1
+            outputNames: output1
+          outgoingConnections:
+            - output1->"Graph Output" 5M83haTR8oXV5bBJPGV9K/value
+          visualData: 1178.8793330989101/315.6173118302577/230/16/var(--node-color-5)/var(--grey-darkish)
+    Y9Od__iUd1dMpjRDxcNlU:
+      metadata:
+        description: ""
+        id: Y9Od__iUd1dMpjRDxcNlU
+        name: pipeline/pipeline2.setup
+      nodes:
+        '[PSoO9N90nDOxY2okuMj_H]:delay "Delay"':
+          data:
+            delay: 1000
+          outgoingConnections:
+            - output1->"Code" pDqX84wtHXcvhA5v6FC7-/input1
+          visualData: 456.523603596246/367.00535484867004/205/11//
+        '[Sw9ETIZpnXo6YGfE6Js10]:graphInput "Graph Input"':
+          data:
+            code: ""
+            dataType: object
+            id: data
+            useDefaultValueInput: false
+          outgoingConnections:
+            - data->"Delay" PSoO9N90nDOxY2okuMj_H/input1
+          visualData: 14.268773767637839/358.48318041240884/330/6/var(--node-color-3)/var(--node-color-3)
+        '[f6mRyCYrumW8HATsmvZv5]:graphOutput "Graph Output"':
+          data:
+            dataType: object
+            id: data
+          visualData: 1945.134110466601/326.19113147764983/330/17/var(--node-color-3)/var(--node-color-3)
+        '[pDqX84wtHXcvhA5v6FC7-]:code "Code"':
+          data:
+            code: >-
+              const data = inputs.input1.value;
+
+
+
+              return {
+                output1: {
+                  type: `object`,
+                  value: {
+                    id: data.id +1,
+                    model: data.model,
+                    message: `this is pipeline2 ${data.id + 1}. \n\n${data.message}`
+                  }
+                }
+              };
+            inputNames: input1
+            outputNames: output1
+          outgoingConnections:
+            - output1->"Graph Output" f6mRyCYrumW8HATsmvZv5/value
+          visualData: 1178.8793330989101/315.6173118302577/230/16/var(--node-color-5)/var(--grey-darkish)
+    ctjCmPclbGlZSFFWtu5lI:
+      metadata:
+        description: ""
+        id: ctjCmPclbGlZSFFWtu5lI
+        name: pipeline/pipeline.test
+      nodes:
+        '[6oZUlG4EY7uyQFrHHpFVt]:pipelineNode "Pipeline Node"':
+          data:
+            enableCache: false
+            loopPipeline: true
+            numberOfPipelineLoops: 3
+          outgoingConnections:
+            - pipelineOutput->"Destructure" vSF5qlRPI95GzwTY-EKhi/object
+          visualData: 759.4624826562315/5.498934418919475/629.8945920563424/78/var(--node-color-5)/var(--node-color-5)
+        '[GH3x1WMK0kTEbYDZfOpZA]:graphReference "Pre stage Graph Reference"':
+          data:
+            graphId: 15aK2UCpIgh48DLvG9PzZ
+            useGraphIdOrNameInput: false
+          outgoingConnections:
+            - graph->"Pipeline Node" 6oZUlG4EY7uyQFrHHpFVt/prePipelineGraph
+          visualData: 163.55721232226082/318.30836354701984/305/89/var(--node-color-6)/var(--grey-darkish)
+        '[WXKD_G3Uij68mdOD6Cwm5]:graphReference "Post stage Graph Reference"':
+          data:
+            graphId: -TECwHZNG0PXWwt85Fqz3
+            useGraphIdOrNameInput: false
+          outgoingConnections:
+            - graph->"Pipeline Node" 6oZUlG4EY7uyQFrHHpFVt/post-0
+          visualData: 166.7001730079796/1115.1695458109548/305/90/var(--node-color-6)/var(--grey-darkish)
+        '[_9zU1bvDueohMJdGUqCng]:graphReference "Stage 1 Graph Reference"':
+          data:
+            graphId: P-B1wmoj_JLk_JwTYNVaq
+            useGraphIdOrNameInput: false
+          outgoingConnections:
+            - graph->"Pipeline Node" 6oZUlG4EY7uyQFrHHpFVt/graph-0
+          visualData: 162.7518434195954/535.1118649898455/305/91//
+        '[gX1nVJ0kgaC1wJ8mJMfuh]:object "Object"':
+          data:
+            jsonTemplate: >2-
+                {
+                  "inputData": {
+                    "type": "object",
+                    "value": {"model": "blah", "response": "This is an api response"}
+                  }
+                }
+          outgoingConnections:
+            - output->"Pipeline Node" 6oZUlG4EY7uyQFrHHpFVt/pipelineInput
+          visualData: 152.16485039371327/-95.91253049582637/422.95098138984963/84/var(--node-color-3)/var(--grey-darkish)
+        '[hZ3r0DzEFMPPJ_QcHAshe]:text "result"':
+          data:
+            text: "{{input}}"
+          visualData: 1633.869072817737/363.2425716896237/330/80/var(--node-color-4)/var(--node-color-4)
+        '[iBuYAxqPdp8Do1zjewGH8]:graphReference "Stage 3 Graph Reference"':
+          data:
+            graphId: eSfBNstcJCNEVRAa2KKhT
+            useGraphIdOrNameInput: false
+          outgoingConnections:
+            - graph->"Pipeline Node" 6oZUlG4EY7uyQFrHHpFVt/graph-2
+          visualData: 165.34209475742648/918.4118100359808/305/89//
+        '[j0EbhKJND_ZnGCRMfnfmE]:graphReference "Stage 2 Graph Reference"':
+          data:
+            graphId: Y9Od__iUd1dMpjRDxcNlU
+            useGraphIdOrNameInput: false
+          outgoingConnections:
+            - graph->"Pipeline Node" 6oZUlG4EY7uyQFrHHpFVt/graph-1
+          visualData: 167.78434864623193/730.7397367475111/305/89//
+        '[vSF5qlRPI95GzwTY-EKhi]:destructure "Destructure"':
+          data:
+            paths:
+              - $.resultData.value
+          outgoingConnections:
+            - match_0->"result" hZ3r0DzEFMPPJ_QcHAshe/input
+          visualData: 1465.6788818003772/57.685393579389654/245.20359882455205/79//
+    eSfBNstcJCNEVRAa2KKhT:
+      metadata:
+        description: ""
+        id: eSfBNstcJCNEVRAa2KKhT
+        name: pipeline/pipeline3.setup
+      nodes:
+        '[-i2QOXTWPQpW043DjVbhj]:graphInput "Graph Input"':
+          data:
+            code: ""
+            dataType: object
+            id: data
+            useDefaultValueInput: false
+          outgoingConnections:
+            - data->"Delay" lzQoN4YKrLPr0-aApmXSW/input1
+          visualData: 14.268773767637839/358.48318041240884/330/6/var(--node-color-3)/var(--node-color-3)
+        '[4s7OukCY8nkgRzUBmhNwj]:code "Code"':
+          data:
+            code: >-
+              const data = inputs.input1.value;
+
+
+
+              return {
+                output1: {
+                  type: `object`,
+                  value: {
+                    id: data.id +1,
+                    model: data.model,
+                    message: `this is pipeline3 ${data.id + 1}. \n\n${data.message}`
+                  }
+                }
+              };
+            inputNames: input1
+            outputNames: output1
+          outgoingConnections:
+            - output1->"Graph Output" 6ONRg6BmiHf43DupQRLiE/value
+          visualData: 1178.8793330989101/315.6173118302577/230/16/var(--node-color-5)/var(--grey-darkish)
+        '[6ONRg6BmiHf43DupQRLiE]:graphOutput "Graph Output"':
+          data:
+            dataType: object
+            id: data
+          visualData: 1945.134110466601/326.19113147764983/330/17/var(--node-color-3)/var(--node-color-3)
+        '[lzQoN4YKrLPr0-aApmXSW]:delay "Delay"':
+          data:
+            delay: 1000
+          outgoingConnections:
+            - output1->"Code" 4s7OukCY8nkgRzUBmhNwj/input1
+          visualData: 456.523603596246/367.00535484867004/205/11//
+    s1BLSPV3YQR45YOdWKcMh:
+      metadata:
+        description: ""
+        id: s1BLSPV3YQR45YOdWKcMh
+        name: iterator/iterator.setup
+      nodes:
+        '[SxI9rWkAf7JrPgCH7YO2f]:graphInput "Graph Input"':
+          data:
+            code: ""
+            dataType: object
+            id: input
+            useDefaultValueInput: false
+          outgoingConnections:
+            - data->"Delay" hVCTPSuv2KRzi33cXV_TH/input1
+          visualData: 14.268773767637839/358.48318041240884/330/6/var(--node-color-3)/var(--node-color-3)
+        '[aGoMurOuN-5x4spFqpAE-]:code "Code"':
+          data:
+            code: >-
+              const data = inputs.input1.value;
+
+
+
+              return {
+                output1: {
+                  type: `object`,
+                  value: {
+                    ...data,
+                    message: 'i love cheese x' + data.id + '[ ' + 'Random'.repeat(10000) + ' ]'
+                  }
+                }
+              };
+            inputNames: input1
+            outputNames: output1
+          outgoingConnections:
+            - output1->"Graph Output" ox5N01W9uy_qwl4-wELL9/value
+          visualData: 1178.8793330989101/315.6173118302577/230/16/var(--node-color-5)/var(--grey-darkish)
+        '[hVCTPSuv2KRzi33cXV_TH]:delay "Delay"':
+          data:
+            delay: 1000
+          outgoingConnections:
+            - output1->"Code" aGoMurOuN-5x4spFqpAE-/input1
+          visualData: 456.523603596246/367.00535484867004/205/11//
+        '[ox5N01W9uy_qwl4-wELL9]:graphOutput "Graph Output"':
+          data:
+            dataType: string
+            id: testOutput
+          visualData: 1945.134110466601/326.19113147764983/330/17/var(--node-color-3)/var(--node-color-3)
+  metadata:
+    description: ""
+    id: UzgiT7lX6oDQtBTyWlqu2
+    mainGraphId: n-fIboNx1iZngLCxocMKH
+    title: Rivet Utilities tests
+  plugins:
+    - id: openai
+      name: OpenAI
+      type: built-in
+    - id: pinecone
+      name: Pinecone
+      type: built-in
+    - id: anthropic
+      name: Anthropic
+      type: built-in
+    - id: assemblyAi
+      name: AssemblyAI
+      type: built-in
+    - id: rivet-plugin-ollama@latest
+      package: rivet-plugin-ollama
+      tag: latest
+      type: package
+    - id: rivet-utilities-plugin@latest
+      package: rivet-utilities-plugin
+      tag: latest
+      type: package
+    - id: rivet-plugin-fs@latest
+      package: rivet-plugin-fs
+      tag: latest
+      type: package
+    - id: huggingFace
+      name: Hugging Face
+      type: built-in
